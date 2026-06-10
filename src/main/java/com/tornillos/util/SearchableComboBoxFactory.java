@@ -33,17 +33,14 @@ public class SearchableComboBoxFactory {
             }
         };
 
-        // =================================================================
-        // SOLUCIÓN AL TONO BLANCO: BOMBARDEAMOS EL LOOK AND FEEL NATIVO
-        // =================================================================
-        // Forzamos un editor propio antes de activar el modo editable
+        // 1. Editor personalizado oscuro para evitar fondo blanco nativo de Windows
         comboBox.setEditor(new javax.swing.plaf.basic.BasicComboBoxEditor() {
             @Override
             protected JTextField createEditorComponent() {
                 JTextField txt = new JTextField();
-                txt.setBackground(AppTheme.BG_CARD_HOVER); // Fondo oscuro
-                txt.setForeground(AppTheme.TEXT_PRIMARY);  // Texto claro
-                txt.setCaretColor(AppTheme.TEXT_PRIMARY);   // Cursor parpadeante claro
+                txt.setBackground(AppTheme.BG_CARD_HOVER);
+                txt.setForeground(AppTheme.TEXT_PRIMARY);
+                txt.setCaretColor(AppTheme.TEXT_PRIMARY);
                 txt.setBorder(BorderFactory.createEmptyBorder(2, 6, 2, 6));
                 return txt;
             }
@@ -51,33 +48,35 @@ public class SearchableComboBoxFactory {
 
         comboBox.setEditable(true);
 
-        // Estilizamos el contenedor del ComboBox
+        // 2. Estilizamos el contenedor base del ComboBox
         comboBox.setBackground(AppTheme.BG_CARD_HOVER);
         comboBox.setForeground(AppTheme.TEXT_PRIMARY);
 
-        // Estilizamos la lista desplegable (Popup)
+        // 3. Renderer premium: padding espacioso + colores del tema
         comboBox.setRenderer(new DefaultListCellRenderer() {
             @Override
             public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
-                Component c = super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
-                
+                super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
+
+                // Padding generoso para evitar la apariencia apretada
+                setBorder(BorderFactory.createEmptyBorder(6, 10, 6, 10));
+
+                // Fondo del popup completo: evita área blanca en Windows cuando hay pocos ítems
                 list.setBackground(AppTheme.BG_CARD);
                 list.setSelectionBackground(AppTheme.ACCENT);
                 list.setSelectionForeground(AppTheme.GOLD_LIGHT);
-                
+
                 if (isSelected) {
-                    c.setBackground(AppTheme.ACCENT);
-                    c.setForeground(AppTheme.GOLD_LIGHT);
+                    setBackground(AppTheme.ACCENT);
+                    setForeground(AppTheme.GOLD_LIGHT);
                 } else {
-                    c.setBackground(AppTheme.BG_CARD);
-                    c.setForeground(AppTheme.TEXT_PRIMARY);
+                    setBackground(AppTheme.BG_CARD);
+                    setForeground(AppTheme.TEXT_PRIMARY);
                 }
-                return c;
+                return this;
             }
         });
-        // =================================================================
 
-        // Ahora recuperamos de forma segura nuestro nuevo editor para el KeyListener
         JTextComponent editor = (JTextComponent) comboBox.getEditor().getEditorComponent();
 
         editor.addKeyListener(new KeyAdapter() {
@@ -88,7 +87,7 @@ public class SearchableComboBoxFactory {
                 if (filtering) return;
 
                 int code = e.getKeyCode();
-                if (code == KeyEvent.VK_UP || code == KeyEvent.VK_DOWN || 
+                if (code == KeyEvent.VK_UP || code == KeyEvent.VK_DOWN ||
                     code == KeyEvent.VK_ENTER || code == KeyEvent.VK_ESCAPE) {
                     return;
                 }

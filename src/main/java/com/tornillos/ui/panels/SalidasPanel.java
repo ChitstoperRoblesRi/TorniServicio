@@ -229,7 +229,36 @@ public class SalidasPanel extends JPanel {
         
         cmbTornillo.setBackground(AppTheme.BG_CARD_HOVER);
         cmbTornillo.setForeground(AppTheme.TEXT_PRIMARY);
+        // Usamos el factory del tema para conservar el estilo premium (padding, fuente, bordes)
         JComboBox<String> cmbMotivo = AppTheme.styledCombo(MOTIVOS);
+        // Parche de fondo oscuro: activamos setEditable(true) solo para que Swing use nuestro
+        // editor personalizado. La escritura libre está bloqueada dentro del JTextField interno.
+        cmbMotivo.setEditor(new javax.swing.plaf.basic.BasicComboBoxEditor() {
+            @Override
+            protected JTextField createEditorComponent() {
+                JTextField txt = new JTextField();
+                txt.setBackground(AppTheme.BG_CARD_HOVER);
+                txt.setForeground(AppTheme.TEXT_PRIMARY);
+                // El campo de texto interno es no-editable para bloquear escritura libre,
+                // pero el combo sí necesita setEditable(true) para que este editor se active.
+                txt.setEditable(false);
+                txt.setBorder(BorderFactory.createEmptyBorder(2, 6, 2, 6));
+                txt.addMouseListener(new java.awt.event.MouseAdapter() {
+                    @Override
+                    public void mousePressed(java.awt.event.MouseEvent e) {
+                        if (cmbMotivo.isEnabled()) {
+                            if (cmbMotivo.isPopupVisible()) cmbMotivo.hidePopup();
+                            else cmbMotivo.showPopup();
+                        }
+                    }
+                });
+                return txt;
+            }
+        });
+        // Necesario para que Swing active el editor personalizado y pinte el fondo oscuro.
+        // La escritura libre está bloqueada en el JTextField interno (txt.setEditable(false)).
+        cmbMotivo.setEditable(true);
+
         JTextField txtCantidad = AppTheme.styledField("0");
         JTextField txtPrecio   = AppTheme.styledField("0.00");
         JTextField txtCliente  = AppTheme.styledField("Nombre del cliente (opcional)");
@@ -283,7 +312,10 @@ public class SalidasPanel extends JPanel {
                 s.setCantidad(cantidad);
                 s.setPrecioUnitario(precio);
                 s.setTotal(precio.multiply(BigDecimal.valueOf(cantidad)));
-                s.setMotivo(cmbMotivo.getSelectedItem().toString());
+                String motivo = cmbMotivo.getSelectedItem() != null ? cmbMotivo.getSelectedItem().toString() : "";
+                boolean motivoValido = java.util.Arrays.asList(MOTIVOS).contains(motivo);
+                if (!motivoValido) throw new IllegalArgumentException("Seleccione un motivo válido de la lista.");
+                s.setMotivo(motivo);
                 s.setCliente(txtCliente.getText().trim());
                 s.setObservaciones(txtObs.getText().trim());
 
