@@ -7,7 +7,7 @@ import com.tornillos.model.*;
 import javax.swing.*;
 import java.awt.*;
 import java.math.BigDecimal;
-import java.util.*;
+//import java.util.*;
 
 public class TornilloDialog extends JDialog {
     private boolean guardado = false;

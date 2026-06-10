@@ -2,6 +2,7 @@ package com.tornillos.ui;
 
 import com.tornillos.config.AppTheme;
 import com.tornillos.dao.AlertaDAO;
+//import com.tornillos.model.Tornillo;
 import com.tornillos.model.Usuario;
 import com.tornillos.service.AlertaService;
 import com.tornillos.service.SessionManager;
@@ -349,5 +350,25 @@ public class MainFrame extends JFrame {
                 }
             }
         } catch (Exception ignored) {}
+    }
+
+    public void gatillarNuevaEntrada() {
+        showPanel("ENTRADAS");          // Cambia la vista a la pestaña de entradas
+        entradasPanel.abrirFormularioEntrada(); // Lanza el modal automáticamente
+    }
+
+    public void gatillarNuevaSalida() {
+        showPanel("SALIDAS");
+        salidasPanel.abrirFormularioSalida();
+    }
+
+    public void gatillarNuevoTornillo() {
+        showPanel("INVENTARIO");
+        inventarioPanel.abrirModalNuevoTornillo(); // Abrir diálogo con un Tornillo vacío para crear uno nuevo
+    }
+
+    public void gatillarReportes() {
+        showPanel("REPORTES");
+        reportesPanel.exportarCSV();
     }
 }

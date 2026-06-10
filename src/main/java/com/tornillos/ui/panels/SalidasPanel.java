@@ -176,7 +176,7 @@ public class SalidasPanel extends JPanel {
         }
     }
 
-    private void abrirFormularioSalida() {
+    public void abrirFormularioSalida() {
         JDialog dlg = new JDialog((JFrame) SwingUtilities.getWindowAncestor(this),
             "Registrar Salida", true);
         dlg.setSize(540, 480);

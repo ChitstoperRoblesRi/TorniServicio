@@ -6,7 +6,7 @@ import com.tornillos.model.*;
 import com.tornillos.service.AlertaService;
 import com.tornillos.service.SessionManager;
 import com.tornillos.ui.MainFrame;
-import com.tornillos.ui.dialogs.TornilloDialog;
+//import com.tornillos.ui.dialogs.TornilloDialog;
 import com.tornillos.util.FolioGenerator;
 
 import javax.swing.*;
@@ -14,7 +14,7 @@ import javax.swing.table.*;
 import java.awt.*;
 import java.awt.event.*;
 import java.math.BigDecimal;
-import java.util.*;
+//import java.util.*;
 import java.util.List;
 
 public class EntradasPanel extends JPanel {
@@ -198,7 +198,7 @@ public class EntradasPanel extends JPanel {
         }
     }
 
-    private void abrirFormularioEntrada() {
+    public void abrirFormularioEntrada() {
         JDialog dlg = new JDialog((JFrame) SwingUtilities.getWindowAncestor(this),
                 "Registrar Entrada", true);
         dlg.setSize(520, 480);

@@ -181,7 +181,7 @@ public class ReportesPanel extends JPanel {
         });
     }
 
-    private void exportarCSV() {
+    public void exportarCSV() {
         if (tableModel.getRowCount() == 0) {
             JOptionPane.showMessageDialog(this, "Genera un reporte antes de exportar.");
             return;

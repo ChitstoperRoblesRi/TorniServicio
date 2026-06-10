@@ -12,7 +12,7 @@ import javax.swing.*;
 import javax.swing.table.*;
 import java.awt.*;
 import java.awt.event.*;
-import java.util.*;
+//import java.util.*;
 import java.util.List;
 
 public class InventarioPanel extends JPanel {
@@ -302,7 +302,7 @@ public class InventarioPanel extends JPanel {
         }
     }
 
-    private void abrirDialogo(Tornillo tornillo) {
+    public void abrirDialogo(Tornillo tornillo) {
         TornilloDialog dlg = new TornilloDialog(
                 (JFrame) SwingUtilities.getWindowAncestor(this), tornillo);
         dlg.setVisible(true);
@@ -311,6 +311,10 @@ public class InventarioPanel extends JPanel {
             alertaService.verificarAlertas();
             mainFrame.actualizarBadgeAlertas();
         }
+    }
+
+    public void abrirModalNuevoTornillo() {
+        abrirDialogo(null);
     }
 
     private void abrirDialogoPorId(int id) {
