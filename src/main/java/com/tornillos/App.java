@@ -11,9 +11,7 @@ public class App {
         System.setProperty("awt.useSystemAAFontSettings", "on");
         System.setProperty("swing.aatext", "true");
         System.setProperty("sun.java2d.opengl", "true");
-
         AppTheme.applyGlobalLookAndFeel();
-
         SwingUtilities.invokeLater(() -> {
             try {
                 new LoginFrame();

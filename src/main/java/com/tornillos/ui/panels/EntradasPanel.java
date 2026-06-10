@@ -6,7 +6,6 @@ import com.tornillos.model.*;
 import com.tornillos.service.AlertaService;
 import com.tornillos.service.SessionManager;
 import com.tornillos.ui.MainFrame;
-import com.tornillos.ui.dialogs.TornilloDialog;
 import com.tornillos.util.FolioGenerator;
 
 import javax.swing.*;
@@ -14,7 +13,6 @@ import javax.swing.table.*;
 import java.awt.*;
 import java.awt.event.*;
 import java.math.BigDecimal;
-import java.util.*;
 import java.util.List;
 
 public class EntradasPanel extends JPanel {
@@ -90,15 +88,19 @@ public class EntradasPanel extends JPanel {
         txtDesde = AppTheme.styledField("Desde YYYY-MM-DD");
         txtDesde.setPreferredSize(new Dimension(150, 34));
         txtDesde.addKeyListener(new KeyAdapter() {
-            @Override public void keyPressed(KeyEvent e) {
-                if (e.getKeyCode() == KeyEvent.VK_ENTER) refresh();
+            @Override
+            public void keyPressed(KeyEvent e) {
+                if (e.getKeyCode() == KeyEvent.VK_ENTER)
+                    refresh();
             }
         });
         txtHasta = AppTheme.styledField("Hasta YYYY-MM-DD");
         txtHasta.setPreferredSize(new Dimension(150, 34));
         txtHasta.addKeyListener(new KeyAdapter() {
-            @Override public void keyPressed(KeyEvent e) {
-                if (e.getKeyCode() == KeyEvent.VK_ENTER) refresh();
+            @Override
+            public void keyPressed(KeyEvent e) {
+                if (e.getKeyCode() == KeyEvent.VK_ENTER)
+                    refresh();
             }
         });
 

@@ -23,11 +23,11 @@ public class SalidasPanel extends JPanel {
     private JLabel lblConteo;
     private SwingWorker<?, ?> currentWorker;
 
-    private final SalidaDAO salidaDAO     = new SalidaDAO();
+    private final SalidaDAO salidaDAO = new SalidaDAO();
     private final TornilloDAO tornilloDAO = new TornilloDAO();
     private final AlertaService alertaService = new AlertaService();
 
-    private final String[] MOTIVOS = {"Venta","Uso Interno","Muestra","Devolucion","Merma","Otro"};
+    private final String[] MOTIVOS = { "Venta", "Uso Interno", "Muestra", "Devolucion", "Merma", "Otro" };
 
     public SalidasPanel(MainFrame frame) {
         this.mainFrame = frame;
@@ -58,11 +58,12 @@ public class SalidasPanel extends JPanel {
         lblConteo = new JLabel("");
         lblConteo.setFont(AppTheme.FONT_SMALL);
         lblConteo.setForeground(AppTheme.TEXT_MUTED);
-        left.add(title); left.add(lblConteo);
+        left.add(title);
+        left.add(lblConteo);
 
         JPanel right = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
         right.setOpaque(false);
-        JButton btnNueva   = AppTheme.dangerButton("+ Nueva Salida");
+        JButton btnNueva = AppTheme.dangerButton("+ Nueva Salida");
         btnNueva.addActionListener(e -> abrirFormularioSalida());
         right.add(btnNueva);
 
@@ -81,41 +82,59 @@ public class SalidasPanel extends JPanel {
         txtBuscar = AppTheme.styledField("Buscar por folio, tornillo, cliente...");
         txtBuscar.setPreferredSize(new Dimension(260, 34));
         txtBuscar.addKeyListener(new KeyAdapter() {
-            @Override public void keyReleased(KeyEvent e) { buscar(); }
+            @Override
+            public void keyReleased(KeyEvent e) {
+                buscar();
+            }
         });
         txtDesde = AppTheme.styledField("Desde YYYY-MM-DD");
         txtDesde.setPreferredSize(new Dimension(148, 34));
         txtDesde.addKeyListener(new KeyAdapter() {
-            @Override public void keyPressed(KeyEvent e) {
-                if (e.getKeyCode() == KeyEvent.VK_ENTER) refresh();
+            @Override
+            public void keyPressed(KeyEvent e) {
+                if (e.getKeyCode() == KeyEvent.VK_ENTER)
+                    refresh();
             }
         });
         txtHasta = AppTheme.styledField("Hasta YYYY-MM-DD");
         txtHasta.setPreferredSize(new Dimension(148, 34));
         txtHasta.addKeyListener(new KeyAdapter() {
-            @Override public void keyPressed(KeyEvent e) {
-                if (e.getKeyCode() == KeyEvent.VK_ENTER) refresh();
+            @Override
+            public void keyPressed(KeyEvent e) {
+                if (e.getKeyCode() == KeyEvent.VK_ENTER)
+                    refresh();
             }
         });
         JButton btnFiltrar = AppTheme.primaryButton("Filtrar");
         JButton btnLimpiar = AppTheme.secondaryButton("X Limpiar");
         btnFiltrar.addActionListener(e -> refresh());
         btnLimpiar.addActionListener(e -> {
-            txtBuscar.setText(""); txtDesde.setText(""); txtHasta.setText(""); refresh();
+            txtBuscar.setText("");
+            txtDesde.setText("");
+            txtHasta.setText("");
+            refresh();
         });
         bar.add(txtBuscar);
-        bar.add(AppTheme.label("Desde:")); bar.add(txtDesde);
-        bar.add(AppTheme.label("Hasta:")); bar.add(txtHasta);
-        bar.add(btnFiltrar); bar.add(btnLimpiar);
+        bar.add(AppTheme.label("Desde:"));
+        bar.add(txtDesde);
+        bar.add(AppTheme.label("Hasta:"));
+        bar.add(txtHasta);
+        bar.add(btnFiltrar);
+        bar.add(btnLimpiar);
         p.add(bar, BorderLayout.NORTH);
 
         // Tabla
-        String[] cols = {"ID","Folio","Tornillo","Codigo","Motivo","Cliente","Cantidad","P.Unitario","Total","Usuario","Fecha"};
+        String[] cols = { "ID", "Folio", "Tornillo", "Codigo", "Motivo", "Cliente", "Cantidad", "P.Unitario", "Total",
+                "Usuario", "Fecha" };
         tableModel = new DefaultTableModel(cols, 0) {
-            @Override public boolean isCellEditable(int r, int c) { return false; }
+            @Override
+            public boolean isCellEditable(int r, int c) {
+                return false;
+            }
         };
         table = new JTable(tableModel) {
-            @Override public Component prepareRenderer(TableCellRenderer r, int row, int col) {
+            @Override
+            public Component prepareRenderer(TableCellRenderer r, int row, int col) {
                 Component c = super.prepareRenderer(r, row, col);
                 if (!isRowSelected(row)) {
                     c.setBackground(row % 2 == 0 ? AppTheme.BG_CARD : AppTheme.BG_SURFACE);
@@ -132,10 +151,12 @@ public class SalidasPanel extends JPanel {
         table.getColumnModel().getColumn(0).setMaxWidth(0);
 
         table.addMouseListener(new MouseAdapter() {
-            @Override public void mousePressed(MouseEvent e) {
+            @Override
+            public void mousePressed(MouseEvent e) {
                 if (SwingUtilities.isRightMouseButton(e)) {
                     int row = table.rowAtPoint(e.getPoint());
-                    if (row >= 0) table.setRowSelectionInterval(row, row);
+                    if (row >= 0)
+                        table.setRowSelectionInterval(row, row);
                 }
             }
         });
@@ -158,13 +179,17 @@ public class SalidasPanel extends JPanel {
     }
 
     private void eliminarSeleccionada() {
-        if (!SessionManager.getInstance().isGerente()) return;
+        if (!SessionManager.getInstance().isGerente())
+            return;
         int row = table.getSelectedRow();
-        if (row < 0) { JOptionPane.showMessageDialog(this, "Selecciona una salida."); return; }
+        if (row < 0) {
+            JOptionPane.showMessageDialog(this, "Selecciona una salida.");
+            return;
+        }
         String folio = tableModel.getValueAt(row, 1).toString();
         int opt = JOptionPane.showConfirmDialog(this,
-            "Eliminar salida " + folio + "?\nEsto revertira el stock del tornillo.",
-            "Confirmar eliminacion", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+                "Eliminar salida " + folio + "?\nEsto revertira el stock del tornillo.",
+                "Confirmar eliminacion", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
         if (opt == JOptionPane.YES_OPTION) {
             try {
                 salidaDAO.eliminar((int) tableModel.getValueAt(row, 0));
@@ -178,7 +203,7 @@ public class SalidasPanel extends JPanel {
 
     private void abrirFormularioSalida() {
         JDialog dlg = new JDialog((JFrame) SwingUtilities.getWindowAncestor(this),
-            "Registrar Salida", true);
+                "Registrar Salida", true);
         dlg.setSize(540, 480);
         dlg.setLocationRelativeTo(this);
         dlg.getContentPane().setBackground(AppTheme.BG_CARD);
@@ -191,17 +216,22 @@ public class SalidasPanel extends JPanel {
         gbc.insets = new Insets(6, 6, 6, 6);
 
         List<Tornillo> tornillos;
-        try { tornillos = tornilloDAO.listarTodos(); }
-        catch (Exception e) { JOptionPane.showMessageDialog(this, "Error: " + e.getMessage()); return; }
+        try {
+            tornillos = tornilloDAO.listarTodos();
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(this, "Error: " + e.getMessage());
+            return;
+        }
 
         JComboBox<Tornillo> cmbTornillo = new JComboBox<>(tornillos.toArray(new Tornillo[0]));
         cmbTornillo.setBackground(AppTheme.BG_CARD_HOVER);
         cmbTornillo.setForeground(AppTheme.TEXT_PRIMARY);
         JComboBox<String> cmbMotivo = AppTheme.styledCombo(MOTIVOS);
         JTextField txtCantidad = AppTheme.styledField("0");
-        JTextField txtPrecio   = AppTheme.styledField("0.00");
-        JTextField txtCliente  = AppTheme.styledField("Nombre del cliente (opcional)");
-        JTextArea txtObs       = AppTheme.styledTextArea(); txtObs.setRows(2);
+        JTextField txtPrecio = AppTheme.styledField("0.00");
+        JTextField txtCliente = AppTheme.styledField("Nombre del cliente (opcional)");
+        JTextArea txtObs = AppTheme.styledTextArea();
+        txtObs.setRows(2);
 
         // Label stock disponible
         JLabel lblStock = new JLabel("Stock disponible: --");
@@ -213,19 +243,24 @@ public class SalidasPanel extends JPanel {
                 int stock = t.getStockActual();
                 lblStock.setText("Stock disponible: " + stock + " " + t.getUnidadMedida());
                 lblStock.setForeground(stock <= t.getStockMinimo() ? AppTheme.WARNING : AppTheme.SUCCESS_TEXT);
-                if (t.getPrecioVenta() != null) txtPrecio.setText(t.getPrecioVenta().toString());
+                if (t.getPrecioVenta() != null)
+                    txtPrecio.setText(t.getPrecioVenta().toString());
             }
         });
-        if (cmbTornillo.getItemCount() > 0) cmbTornillo.setSelectedIndex(0);
+        if (cmbTornillo.getItemCount() > 0)
+            cmbTornillo.setSelectedIndex(0);
 
         String folio = FolioGenerator.generarSalida();
         JTextField txtFolio = AppTheme.styledField(folio);
-        txtFolio.setText(folio); txtFolio.setEditable(false);
+        txtFolio.setText(folio);
+        txtFolio.setEditable(false);
         txtFolio.setForeground(AppTheme.TEXT_MUTED);
 
         addRow(form, gbc, 0, "Folio:", txtFolio);
         addRow(form, gbc, 1, "Tornillo:", cmbTornillo);
-        gbc.gridx = 1; gbc.gridy = 2; form.add(lblStock, gbc);
+        gbc.gridx = 1;
+        gbc.gridy = 2;
+        form.add(lblStock, gbc);
         addRow(form, gbc, 3, "Motivo:", cmbMotivo);
         addRow(form, gbc, 4, "Cliente:", txtCliente);
         addRow(form, gbc, 5, "Cantidad:", txtCantidad);
@@ -233,15 +268,16 @@ public class SalidasPanel extends JPanel {
 
         JPanel btns = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
         btns.setOpaque(false);
-        JButton btnCancel  = AppTheme.secondaryButton("Cancelar");
+        JButton btnCancel = AppTheme.secondaryButton("Cancelar");
         JButton btnGuardar = AppTheme.dangerButton("Registrar Salida");
         btnCancel.addActionListener(e -> dlg.dispose());
         btnGuardar.addActionListener(e -> {
             try {
-                Tornillo t   = (Tornillo) cmbTornillo.getSelectedItem();
+                Tornillo t = (Tornillo) cmbTornillo.getSelectedItem();
                 int cantidad = Integer.parseInt(txtCantidad.getText().trim());
                 BigDecimal precio = new BigDecimal(txtPrecio.getText().trim());
-                if (cantidad <= 0) throw new IllegalArgumentException("Cantidad debe ser mayor a 0");
+                if (cantidad <= 0)
+                    throw new IllegalArgumentException("Cantidad debe ser mayor a 0");
 
                 Salida s = new Salida();
                 s.setFolio(folio);
@@ -265,37 +301,44 @@ public class SalidasPanel extends JPanel {
 
                 refresh();
                 JOptionPane.showMessageDialog(this,
-                    "Salida registrada. Folio: " + folio, "Exito", JOptionPane.INFORMATION_MESSAGE);
+                        "Salida registrada. Folio: " + folio, "Exito", JOptionPane.INFORMATION_MESSAGE);
             } catch (NumberFormatException ex) {
-                JOptionPane.showMessageDialog(dlg, "Datos numericos invalidos.", "Error", JOptionPane.ERROR_MESSAGE);
+                JOptionPane.showMessageDialog(dlg, "Datos numéricos inválidos.", "Error", JOptionPane.ERROR_MESSAGE);
             } catch (Exception ex) {
                 JOptionPane.showMessageDialog(dlg, "Error: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
             }
         });
-        gbc.gridx = 0; gbc.gridy = 8; gbc.gridwidth = 2;
+        gbc.gridx = 0;
+        gbc.gridy = 8;
+        gbc.gridwidth = 2;
         form.add(btns, gbc);
-        btns.add(btnCancel); btns.add(btnGuardar);
+        btns.add(btnCancel);
+        btns.add(btnGuardar);
         dlg.add(new JScrollPane(form));
         dlg.setVisible(true);
     }
 
     private void addRow(JPanel p, GridBagConstraints gbc, int row, String label, JComponent field) {
-        gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 1; gbc.weightx = 0.3;
+        gbc.gridx = 0;
+        gbc.gridy = row;
+        gbc.gridwidth = 1;
+        gbc.weightx = 0.3;
         p.add(AppTheme.label(label), gbc);
-        gbc.gridx = 1; gbc.weightx = 0.7;
+        gbc.gridx = 1;
+        gbc.weightx = 0.7;
         p.add(field, gbc);
     }
 
     private void poblarTabla(List<Salida> lista) {
         tableModel.setRowCount(0);
         for (Salida s : lista) {
-            tableModel.addRow(new Object[]{
-                s.getId(), s.getFolio(),
-                s.getTornilloNombre(), s.getTornilloCodigo(),
-                s.getMotivo(), s.getCliente(),
-                s.getCantidad(), s.getPrecioUnitario(), s.getTotal(),
-                s.getUsuarioNombre(),
-                s.getFecha() != null ? s.getFecha().toString().substring(0, 16) : ""
+            tableModel.addRow(new Object[] {
+                    s.getId(), s.getFolio(),
+                    s.getTornilloNombre(), s.getTornilloCodigo(),
+                    s.getMotivo(), s.getCliente(),
+                    s.getCantidad(), s.getPrecioUnitario(), s.getTotal(),
+                    s.getUsuarioNombre(),
+                    s.getFecha() != null ? s.getFecha().toString().substring(0, 16) : ""
             });
         }
         lblConteo.setText(lista.size() + " salida(s)");
@@ -305,14 +348,20 @@ public class SalidasPanel extends JPanel {
         if (currentWorker != null && !currentWorker.isDone())
             currentWorker.cancel(true);
         currentWorker = new SwingWorker<List<Salida>, Void>() {
-            @Override protected List<Salida> doInBackground() throws Exception {
+            @Override
+            protected List<Salida> doInBackground() throws Exception {
                 String termino = txtBuscar.getText().trim();
                 String desde = txtDesde.getText().trim().isEmpty() ? null : txtDesde.getText().trim();
                 String hasta = txtHasta.getText().trim().isEmpty() ? null : txtHasta.getText().trim();
                 return salidaDAO.buscar(termino, desde, hasta);
             }
-            @Override protected void done() {
-                try { poblarTabla(get()); } catch (Exception ex) { /* ignored */ }
+
+            @Override
+            protected void done() {
+                try {
+                    poblarTabla(get());
+                } catch (Exception ex) {
+                    /* ignored */ }
             }
         };
         currentWorker.execute();
