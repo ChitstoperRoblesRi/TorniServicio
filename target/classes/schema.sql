@@ -67,6 +67,7 @@ CREATE TABLE IF NOT EXISTS tornillos (
     categoria_id INT REFERENCES categorias(id),
     proveedor_id INT REFERENCES proveedores(id),
     material VARCHAR(100),
+    sistema_medida VARCHAR(10) DEFAULT 'METRICO', -- <-- NUEVA COLUMNA
     diametro_mm DECIMAL(8,2),
     longitud_mm DECIMAL(8,2),
     paso_rosca DECIMAL(6,3),

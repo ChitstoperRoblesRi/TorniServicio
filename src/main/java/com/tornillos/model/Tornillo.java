@@ -11,6 +11,8 @@ public class Tornillo {
     private BigDecimal precioCosto, precioVenta;
     private int stockActual, stockMinimo, stockMaximo;
     private boolean activo;
+    private int categoriaId;
+    private String sistemaMedida;
     private LocalDateTime creadoEn, actualizadoEn;
 
     public Tornillo() {
@@ -165,6 +167,22 @@ public class Tornillo {
 
     public void setActivo(boolean a) {
         activo = a;
+    }
+
+    public int getCategoriaId() {
+        return categoriaId;
+    }
+
+    public void setCategoriaId(int categoriaId) {
+        this.categoriaId = categoriaId;
+    }
+
+    public String getSistemaMedida() {
+        return sistemaMedida;
+    }
+
+    public void setSistemaMedida(String sistemaMedida) {
+        this.sistemaMedida = sistemaMedida;
     }
 
     public LocalDateTime getCreadoEn() {
