@@ -10,7 +10,7 @@ import com.tornillos.ui.MainFrame;
 
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.*;
+//import java.awt.event.*;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
@@ -174,7 +174,7 @@ public class DashboardPanel extends JPanel {
                 { "Registrar entrada de tornillos", "ENTRADAS" },
                 { "Registrar salida de tornillos", "SALIDAS" },
                 { "Agregar nuevo tornillo", "INVENTARIO" },
-                { "Ver reportes y exportar", "REPORTES" },
+                { "Exportar reportes CSV", "REPORTES" },
         };
 
         for (String[] a : actions) {
@@ -182,7 +182,25 @@ public class DashboardPanel extends JPanel {
             btn.setHorizontalAlignment(SwingConstants.LEFT);
             btn.setMaximumSize(new Dimension(Integer.MAX_VALUE, 36));
             String key = a[1];
-            btn.addActionListener(e -> mainFrame.showPanel(key));
+            btn.addActionListener(e -> {
+                switch (key) {
+                    case "ENTRADAS":
+                        mainFrame.gatillarNuevaEntrada();
+                        break;
+                    case "SALIDAS":
+                        mainFrame.gatillarNuevaSalida();
+                        break;
+                    case "INVENTARIO":
+                        mainFrame.gatillarNuevoTornillo();
+                        break;
+                    case "REPORTES":
+                        mainFrame.gatillarReportes();
+                        break;
+                    default:
+                        mainFrame.showPanel(key);
+                        break;
+                }
+            });
             btns.add(btn);
         }
 

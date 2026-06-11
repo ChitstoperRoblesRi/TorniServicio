@@ -1,21 +1,50 @@
 package com.tornillos.ui.panels;
 
+import java.awt.BorderLayout;
+import java.awt.Component;
+import java.awt.Dimension;
+import java.awt.FlowLayout;
+import java.awt.Font;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
+import java.awt.GridLayout;
+import java.awt.Insets;
+import java.awt.event.KeyAdapter;
+import java.awt.event.KeyEvent;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+import java.math.BigDecimal;
+import java.util.List;
+
+import javax.swing.BorderFactory;
+import javax.swing.JButton;
+import javax.swing.JComboBox;
+import javax.swing.JComponent;
+import javax.swing.JDialog;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JMenuItem;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.JPopupMenu;
+import javax.swing.JScrollPane;
+import javax.swing.JTable;
+import javax.swing.JTextArea;
+import javax.swing.JTextField;
+import javax.swing.SwingUtilities;
+import javax.swing.SwingWorker;
+import javax.swing.table.DefaultTableModel;
+import javax.swing.table.TableCellRenderer;
+
 import com.tornillos.config.AppTheme;
-import com.tornillos.dao.*;
-import com.tornillos.model.*;
+import com.tornillos.dao.EntradaDAO;
+import com.tornillos.dao.TornilloDAO;
+import com.tornillos.model.Entrada;
+import com.tornillos.model.Tornillo;
 import com.tornillos.service.AlertaService;
 import com.tornillos.service.SessionManager;
 import com.tornillos.ui.MainFrame;
-import com.tornillos.ui.dialogs.TornilloDialog;
 import com.tornillos.util.FolioGenerator;
-
-import javax.swing.*;
-import javax.swing.table.*;
-import java.awt.*;
-import java.awt.event.*;
-import java.math.BigDecimal;
-import java.util.*;
-import java.util.List;
 
 public class EntradasPanel extends JPanel {
     private final MainFrame mainFrame;
@@ -198,7 +227,7 @@ public class EntradasPanel extends JPanel {
         }
     }
 
-    private void abrirFormularioEntrada() {
+    public void abrirFormularioEntrada() {
         JDialog dlg = new JDialog((JFrame) SwingUtilities.getWindowAncestor(this),
                 "Registrar Entrada", true);
         dlg.setSize(520, 480);
@@ -220,7 +249,8 @@ public class EntradasPanel extends JPanel {
             return;
         }
 
-        JComboBox<Tornillo> cmbTornillo = new JComboBox<>(tornillos.toArray(new Tornillo[0]));
+        JComboBox<Tornillo> cmbTornillo = com.tornillos.util.SearchableComboBoxFactory.create(tornillos);
+        cmbTornillo.setSelectedIndex(-1);
         cmbTornillo.setBackground(AppTheme.BG_CARD_HOVER);
         cmbTornillo.setForeground(AppTheme.TEXT_PRIMARY);
 
@@ -229,6 +259,17 @@ public class EntradasPanel extends JPanel {
         JTextField txtFactura = AppTheme.styledField("Numero de factura (opcional)");
         JTextArea txtObs = AppTheme.styledTextArea();
         txtObs.setRows(2);
+
+        // ── LÓGICA DE AUTOMATIZACIÓN DEL PRECIO DE COSTO ──
+        cmbTornillo.addActionListener(e -> {
+            Tornillo seleccionado = (Tornillo) cmbTornillo.getSelectedItem();
+            if (seleccionado != null && seleccionado.getPrecioCosto() != null) {
+                txtPrecio.setText(seleccionado.getPrecioCosto().toString());
+            } else {
+                txtPrecio.setText("0.00");
+            }
+        });
+        // ──────────────────────────────────────────────────
 
         String folio = FolioGenerator.generarEntrada();
         JTextField txtFolio = AppTheme.styledField(folio);
@@ -241,10 +282,15 @@ public class EntradasPanel extends JPanel {
         addRow(form, gbc, 2, "Cantidad:", txtCantidad);
         addRow(form, gbc, 3, "Precio Unitario:", txtPrecio);
         addRow(form, gbc, 4, "No. Factura:", txtFactura);
+
         gbc.gridx = 0;
         gbc.gridy = 5;
+        gbc.gridwidth = 1;
+        gbc.weightx = 0.0;
         form.add(AppTheme.label("Observaciones:"), gbc);
+
         gbc.gridx = 1;
+        gbc.weightx = 1.0;
         form.add(AppTheme.darkScrollPane(txtObs), gbc);
 
         JPanel btns = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
@@ -255,6 +301,8 @@ public class EntradasPanel extends JPanel {
         btnGuardar.addActionListener(e -> {
             try {
                 Tornillo t = (Tornillo) cmbTornillo.getSelectedItem();
+                if (t == null) throw new IllegalArgumentException("Debe seleccionar un tornillo de la lista.");
+                
                 int cantidad = Integer.parseInt(txtCantidad.getText().trim());
                 BigDecimal precio = new BigDecimal(txtPrecio.getText().trim());
                 if (cantidad <= 0)
@@ -289,6 +337,7 @@ public class EntradasPanel extends JPanel {
         gbc.gridx = 0;
         gbc.gridy = 6;
         gbc.gridwidth = 2;
+        gbc.weightx = 0.0; 
         form.add(btns, gbc);
         btnCancel.addActionListener(ev -> dlg.dispose());
         btns.add(btnCancel);
@@ -301,10 +350,10 @@ public class EntradasPanel extends JPanel {
         gbc.gridx = 0;
         gbc.gridy = row;
         gbc.gridwidth = 1;
-        gbc.weightx = 0.3;
+        gbc.weightx = 0.0;
         p.add(AppTheme.label(label), gbc);
         gbc.gridx = 1;
-        gbc.weightx = 0.7;
+        gbc.weightx = 1.0;
         p.add(field, gbc);
     }
 

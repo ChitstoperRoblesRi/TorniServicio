@@ -1,19 +1,50 @@
 package com.tornillos.ui.panels;
 
+import java.awt.BorderLayout;
+import java.awt.Component;
+import java.awt.Dimension;
+import java.awt.FlowLayout;
+import java.awt.Font;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
+import java.awt.GridLayout;
+import java.awt.Insets;
+import java.awt.event.KeyAdapter;
+import java.awt.event.KeyEvent;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+import java.math.BigDecimal;
+import java.util.List;
+
+import javax.swing.BorderFactory;
+import javax.swing.JButton;
+import javax.swing.JComboBox;
+import javax.swing.JComponent;
+import javax.swing.JDialog;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JMenuItem;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.JPopupMenu;
+import javax.swing.JScrollPane;
+import javax.swing.JTable;
+import javax.swing.JTextArea;
+import javax.swing.JTextField;
+import javax.swing.SwingUtilities;
+import javax.swing.SwingWorker;
+import javax.swing.table.DefaultTableModel;
+import javax.swing.table.TableCellRenderer;
+
 import com.tornillos.config.AppTheme;
-import com.tornillos.dao.*;
-import com.tornillos.model.*;
+import com.tornillos.dao.SalidaDAO;
+import com.tornillos.dao.TornilloDAO;
+import com.tornillos.model.Salida;
+import com.tornillos.model.Tornillo;
 import com.tornillos.service.AlertaService;
 import com.tornillos.service.SessionManager;
 import com.tornillos.ui.MainFrame;
 import com.tornillos.util.FolioGenerator;
-
-import javax.swing.*;
-import javax.swing.table.*;
-import java.awt.*;
-import java.awt.event.*;
-import java.math.BigDecimal;
-import java.util.List;
 
 public class SalidasPanel extends JPanel {
     private final MainFrame mainFrame;
@@ -176,7 +207,7 @@ public class SalidasPanel extends JPanel {
         }
     }
 
-    private void abrirFormularioSalida() {
+    public void abrirFormularioSalida() {
         JDialog dlg = new JDialog((JFrame) SwingUtilities.getWindowAncestor(this),
             "Registrar Salida", true);
         dlg.setSize(540, 480);
@@ -194,10 +225,40 @@ public class SalidasPanel extends JPanel {
         try { tornillos = tornilloDAO.listarTodos(); }
         catch (Exception e) { JOptionPane.showMessageDialog(this, "Error: " + e.getMessage()); return; }
 
-        JComboBox<Tornillo> cmbTornillo = new JComboBox<>(tornillos.toArray(new Tornillo[0]));
+        JComboBox<Tornillo> cmbTornillo = com.tornillos.util.SearchableComboBoxFactory.create(tornillos);
+        
         cmbTornillo.setBackground(AppTheme.BG_CARD_HOVER);
         cmbTornillo.setForeground(AppTheme.TEXT_PRIMARY);
+        // Usamos el factory del tema para conservar el estilo premium (padding, fuente, bordes)
         JComboBox<String> cmbMotivo = AppTheme.styledCombo(MOTIVOS);
+        // Parche de fondo oscuro: activamos setEditable(true) solo para que Swing use nuestro
+        // editor personalizado. La escritura libre está bloqueada dentro del JTextField interno.
+        cmbMotivo.setEditor(new javax.swing.plaf.basic.BasicComboBoxEditor() {
+            @Override
+            protected JTextField createEditorComponent() {
+                JTextField txt = new JTextField();
+                txt.setBackground(AppTheme.BG_CARD_HOVER);
+                txt.setForeground(AppTheme.TEXT_PRIMARY);
+                // El campo de texto interno es no-editable para bloquear escritura libre,
+                // pero el combo sí necesita setEditable(true) para que este editor se active.
+                txt.setEditable(false);
+                txt.setBorder(BorderFactory.createEmptyBorder(2, 6, 2, 6));
+                txt.addMouseListener(new java.awt.event.MouseAdapter() {
+                    @Override
+                    public void mousePressed(java.awt.event.MouseEvent e) {
+                        if (cmbMotivo.isEnabled()) {
+                            if (cmbMotivo.isPopupVisible()) cmbMotivo.hidePopup();
+                            else cmbMotivo.showPopup();
+                        }
+                    }
+                });
+                return txt;
+            }
+        });
+        // Necesario para que Swing active el editor personalizado y pinte el fondo oscuro.
+        // La escritura libre está bloqueada en el JTextField interno (txt.setEditable(false)).
+        cmbMotivo.setEditable(true);
+
         JTextField txtCantidad = AppTheme.styledField("0");
         JTextField txtPrecio   = AppTheme.styledField("0.00");
         JTextField txtCliente  = AppTheme.styledField("Nombre del cliente (opcional)");
@@ -216,7 +277,7 @@ public class SalidasPanel extends JPanel {
                 if (t.getPrecioVenta() != null) txtPrecio.setText(t.getPrecioVenta().toString());
             }
         });
-        if (cmbTornillo.getItemCount() > 0) cmbTornillo.setSelectedIndex(0);
+        cmbTornillo.setSelectedIndex(-1);
 
         String folio = FolioGenerator.generarSalida();
         JTextField txtFolio = AppTheme.styledField(folio);
@@ -238,7 +299,8 @@ public class SalidasPanel extends JPanel {
         btnCancel.addActionListener(e -> dlg.dispose());
         btnGuardar.addActionListener(e -> {
             try {
-                Tornillo t   = (Tornillo) cmbTornillo.getSelectedItem();
+                Tornillo t = (Tornillo) cmbTornillo.getSelectedItem();
+                if (t == null) throw new IllegalArgumentException("Debe seleccionar un tornillo de la lista.");
                 int cantidad = Integer.parseInt(txtCantidad.getText().trim());
                 BigDecimal precio = new BigDecimal(txtPrecio.getText().trim());
                 if (cantidad <= 0) throw new IllegalArgumentException("Cantidad debe ser mayor a 0");
@@ -250,7 +312,10 @@ public class SalidasPanel extends JPanel {
                 s.setCantidad(cantidad);
                 s.setPrecioUnitario(precio);
                 s.setTotal(precio.multiply(BigDecimal.valueOf(cantidad)));
-                s.setMotivo(cmbMotivo.getSelectedItem().toString());
+                String motivo = cmbMotivo.getSelectedItem() != null ? cmbMotivo.getSelectedItem().toString() : "";
+                boolean motivoValido = java.util.Arrays.asList(MOTIVOS).contains(motivo);
+                if (!motivoValido) throw new IllegalArgumentException("Seleccione un motivo válido de la lista.");
+                s.setMotivo(motivo);
                 s.setCliente(txtCliente.getText().trim());
                 s.setObservaciones(txtObs.getText().trim());
 
@@ -273,6 +338,7 @@ public class SalidasPanel extends JPanel {
             }
         });
         gbc.gridx = 0; gbc.gridy = 8; gbc.gridwidth = 2;
+        gbc.weightx = 0.0;
         form.add(btns, gbc);
         btns.add(btnCancel); btns.add(btnGuardar);
         dlg.add(new JScrollPane(form));
@@ -280,9 +346,13 @@ public class SalidasPanel extends JPanel {
     }
 
     private void addRow(JPanel p, GridBagConstraints gbc, int row, String label, JComponent field) {
-        gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 1; gbc.weightx = 0.3;
+        gbc.gridx = 0; 
+        gbc.gridy = row; 
+        gbc.gridwidth = 1; 
+        gbc.weightx = 0.0;
         p.add(AppTheme.label(label), gbc);
-        gbc.gridx = 1; gbc.weightx = 0.7;
+        gbc.gridx = 1; 
+        gbc.weightx = 1.0;
         p.add(field, gbc);
     }
 
