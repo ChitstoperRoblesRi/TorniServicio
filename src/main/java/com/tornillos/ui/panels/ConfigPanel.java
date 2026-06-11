@@ -172,30 +172,30 @@ public class ConfigPanel extends JPanel {
 
     private void cargarConfig() {
         try {
-            Map<String, String> conf = confService.obtenerTodas();
-            txtEmpresa.setText(conf.getOrDefault("empresa_nombre", ""));
-            txtRfc.setText(conf.getOrDefault("empresa_rfc", ""));
-            txtEmail.setText(conf.getOrDefault("empresa_email", ""));
-            txtSmtpHost.setText(conf.getOrDefault("smtp_host", "smtp.gmail.com"));
-            txtSmtpPort.setText(conf.getOrDefault("smtp_port", "587"));
-            txtSmtpUser.setText(conf.getOrDefault("smtp_user", ""));
-            txtSmtpPass.setText(conf.getOrDefault("smtp_password", ""));
-            txtSmtpDest.setText(conf.getOrDefault("alertas_email_destino", ""));
+            Map<String, String> config = confService.obtenerTodas();
+            txtEmpresa.setText(config.getOrDefault("empresa_nombre", ""));
+            txtRfc.setText(config.getOrDefault("empresa_rfc", ""));
+            txtEmail.setText(config.getOrDefault("empresa_email", ""));
+            txtSmtpHost.setText(config.getOrDefault("smtp_host", "smtp.gmail.com"));
+            txtSmtpPort.setText(config.getOrDefault("smtp_port", "587"));
+            txtSmtpUser.setText(config.getOrDefault("smtp_user", ""));
+            txtSmtpPass.setText(config.getOrDefault("smtp_password", ""));
+            txtSmtpDest.setText(config.getOrDefault("alertas_email_destino", ""));
             chkEmailActivo.setSelected("true".equalsIgnoreCase(
-                    conf.getOrDefault("alertas_email_activo", "false")));
+                    config.getOrDefault("alertas_email_activo", "false")));
         } catch (Exception e) {
             JOptionPane.showMessageDialog(this, "Error cargando config: " + e.getMessage());
         }
     }
 
     private void probarConexion() {
-        Map<String, String> conf = new java.util.HashMap<>();
-        conf.put("smtp_host", txtSmtpHost.getText().trim());
-        conf.put("smtp_port", txtSmtpPort.getText().trim());
-        conf.put("smtp_user", txtSmtpUser.getText().trim());
-        conf.put("smtp_password", new String(txtSmtpPass.getPassword()));
-        conf.put("alertas_email_destino", txtSmtpDest.getText().trim());
-        conf.put("empresa_nombre", txtEmpresa.getText().trim().isEmpty()
+        Map<String, String> config = new java.util.HashMap<>();
+        config.put("smtp_host", txtSmtpHost.getText().trim());
+        config.put("smtp_port", txtSmtpPort.getText().trim());
+        config.put("smtp_user", txtSmtpUser.getText().trim());
+        config.put("smtp_password", new String(txtSmtpPass.getPassword()));
+        config.put("alertas_email_destino", txtSmtpDest.getText().trim());
+        config.put("empresa_nombre", txtEmpresa.getText().trim().isEmpty()
                 ? "Sistema de Inventario" : txtEmpresa.getText().trim());
 
         btnProbar.setEnabled(false);
@@ -203,7 +203,7 @@ public class ConfigPanel extends JPanel {
         SwingWorker<String, Void> w = new SwingWorker<>() {
             @Override
             protected String doInBackground() {
-                return alertaService.probarConexion(conf);
+                return alertaService.probarConexion(config);
             }
 
             @Override

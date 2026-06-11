@@ -13,8 +13,8 @@ public class ConfiguracionService {
         return configuracionDAO.obtenerTodas();
     }
 
-    public void guardar(String clave, String valor) throws SQLException {
-        configuracionDAO.guardar(clave, valor);
+    public boolean guardar(String clave, String valor) throws SQLException {
+        return configuracionDAO.guardar(clave, valor);
     }
 
     public void guardarTodas(Map<String, String> config) throws SQLException {

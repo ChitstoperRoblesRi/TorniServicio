@@ -14,23 +14,25 @@ public class SalidaService {
     private final TornilloDAO tornilloDAO = new TornilloDAO();
     private final AlertaService alertaService = new AlertaService();
 
-    public void registrar(Salida salida) throws SQLException {
-        Tornillo t = tornilloDAO.obtenerPorId(salida.getTornilloId());
-        if (t == null) {
+    public boolean registrar(Salida salida) throws SQLException {
+        Tornillo tornillo = tornilloDAO.obtenerPorId(salida.getTornilloId());
+        if (tornillo == null) {
             throw new SQLException("Tornillo no encontrado");
         }
-        int stockActual = t.getStockActual();
+        int stockActual = tornillo.getStockActual();
         if (stockActual < salida.getCantidad()) {
             throw new SQLException("Stock insuficiente. Disponible: " + stockActual
                     + " | Solicitado: " + salida.getCantidad());
         }
-        salidaDAO.registrar(salida);
+        boolean resultado = salidaDAO.registrar(salida);
         alertaService.verificarAlertas();
+        return resultado;
     }
 
-    public void eliminar(int id) throws SQLException {
-        salidaDAO.eliminar(id);
+    public boolean eliminar(int id) throws SQLException {
+        boolean resultado = salidaDAO.eliminar(id);
         alertaService.verificarAlertas();
+        return resultado;
     }
 
     public List<Salida> buscar(String termino, String desde, String hasta) throws SQLException {

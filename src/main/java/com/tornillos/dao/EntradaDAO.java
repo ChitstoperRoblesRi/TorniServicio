@@ -9,30 +9,31 @@ import java.util.List;
 
 public class EntradaDAO {
 
-    public void registrar(Entrada e) throws SQLException {
+    public boolean registrar(Entrada entrada) throws SQLException {
         Connection conn = DatabaseConfig.getConnection();
         conn.setAutoCommit(false);
         try {
             String sql = "INSERT INTO entradas (folio, tornillo_id, usuario_id, cantidad, " +
                          "precio_unitario, total, numero_factura, observaciones) VALUES (?,?,?,?,?,?,?,?)";
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
-                ps.setString(1, e.getFolio());
-                ps.setInt(2, e.getTornilloId());
-                ps.setInt(3, e.getUsuarioId());
-                ps.setInt(4, e.getCantidad());
-                ps.setBigDecimal(5, e.getPrecioUnitario());
-                ps.setBigDecimal(6, e.getTotal());
-                ps.setString(7, e.getNumeroFactura());
-                ps.setString(8, e.getObservaciones());
+                ps.setString(1, entrada.getFolio());
+                ps.setInt(2, entrada.getTornilloId());
+                ps.setInt(3, entrada.getUsuarioId());
+                ps.setInt(4, entrada.getCantidad());
+                ps.setBigDecimal(5, entrada.getPrecioUnitario());
+                ps.setBigDecimal(6, entrada.getTotal());
+                ps.setString(7, entrada.getNumeroFactura());
+                ps.setString(8, entrada.getObservaciones());
                 ps.executeUpdate();
             }
             try (PreparedStatement ps = conn.prepareStatement(
                     "UPDATE tornillos SET stock_actual = stock_actual + ? WHERE id=?")) {
-                ps.setInt(1, e.getCantidad());
-                ps.setInt(2, e.getTornilloId());
+                ps.setInt(1, entrada.getCantidad());
+                ps.setInt(2, entrada.getTornilloId());
                 ps.executeUpdate();
             }
             conn.commit();
+            return true;
         } catch (SQLException ex) {
             conn.rollback();
             throw ex;
@@ -49,25 +50,25 @@ public class EntradaDAO {
     }
 
     private Entrada mapear(ResultSet rs) throws SQLException {
-        Entrada e = new Entrada();
-        e.setId(rs.getInt("id"));
-        e.setFolio(rs.getString("folio"));
-        e.setTornilloId(rs.getInt("tornillo_id"));
-        e.setTornilloNombre(rs.getString("tornillo_nombre"));
-        e.setTornilloCodigo(rs.getString("tornillo_codigo"));
-        e.setUsuarioId(rs.getInt("usuario_id"));
-        e.setUsuarioNombre(rs.getString("usuario_nombre"));
-        e.setCantidad(rs.getInt("cantidad"));
-        e.setPrecioUnitario(rs.getBigDecimal("precio_unitario"));
-        e.setTotal(rs.getBigDecimal("total"));
-        e.setNumeroFactura(rs.getString("numero_factura"));
-        e.setObservaciones(rs.getString("observaciones"));
-        Timestamp ts = rs.getTimestamp("fecha");
-        if (ts != null) e.setFecha(ts.toLocalDateTime());
-        return e;
+        Entrada entrada = new Entrada();
+        entrada.setId(rs.getInt("id"));
+        entrada.setFolio(rs.getString("folio"));
+        entrada.setTornilloId(rs.getInt("tornillo_id"));
+        entrada.setTornilloNombre(rs.getString("tornillo_nombre"));
+        entrada.setTornilloCodigo(rs.getString("tornillo_codigo"));
+        entrada.setUsuarioId(rs.getInt("usuario_id"));
+        entrada.setUsuarioNombre(rs.getString("usuario_nombre"));
+        entrada.setCantidad(rs.getInt("cantidad"));
+        entrada.setPrecioUnitario(rs.getBigDecimal("precio_unitario"));
+        entrada.setTotal(rs.getBigDecimal("total"));
+        entrada.setNumeroFactura(rs.getString("numero_factura"));
+        entrada.setObservaciones(rs.getString("observaciones"));
+        Timestamp fechaTs = rs.getTimestamp("fecha");
+        if (fechaTs != null) entrada.setFecha(fechaTs.toLocalDateTime());
+        return entrada;
     }
 
-    public void eliminar(int id) throws SQLException {
+    public boolean eliminar(int id) throws SQLException {
         Connection conn = DatabaseConfig.getConnection();
         conn.setAutoCommit(false);
         try {
@@ -102,6 +103,7 @@ public class EntradaDAO {
                 ps.setInt(1, id); ps.executeUpdate();
             }
             conn.commit();
+            return true;
         } catch (SQLException ex) {
             conn.rollback(); throw ex;
         } finally {

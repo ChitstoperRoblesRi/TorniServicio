@@ -310,8 +310,8 @@ public class InventarioPanel extends JPanel {
 
     private void abrirDialogoPorId(int id) {
         try {
-            Tornillo t = tornilloService.obtenerPorId(id);
-            abrirDialogo(t);
+            Tornillo tornillo = tornilloService.obtenerPorId(id);
+            abrirDialogo(tornillo);
         } catch (Exception e) {
             JOptionPane.showMessageDialog(this, "Error: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
         }
@@ -346,8 +346,8 @@ public class InventarioPanel extends JPanel {
 
     private void poblarTabla(List<Tornillo> lista) {
         tableModel.setRowCount(0);
-        for (Tornillo t : lista) {
-            String est0 = t.getEstadoStock();
+        for (Tornillo tornillo : lista) {
+            String est0 = tornillo.getEstadoStock();
             String estado;
             if ("SIN_STOCK".equals(est0))
                 estado = "SIN STOCK";
@@ -359,12 +359,12 @@ public class InventarioPanel extends JPanel {
                 estado = "NORMAL";
 
             tableModel.addRow(new Object[] {
-                    t.getId(), t.getCodigo(), t.getNombre(),
-                    t.getMaterial(),
-                    t.getDiametroMm() != null ? t.getDiametroMm() : "",
-                    t.getLongitudMm() != null ? t.getLongitudMm() : "",
-                    t.getStockActual(), t.getStockMinimo(),
-                    t.getPrecioVenta(), estado, t.getUbicacion()
+                    tornillo.getId(), tornillo.getCodigo(), tornillo.getNombre(),
+                    tornillo.getMaterial(),
+                    tornillo.getDiametroMm() != null ? tornillo.getDiametroMm() : "",
+                    tornillo.getLongitudMm() != null ? tornillo.getLongitudMm() : "",
+                    tornillo.getStockActual(), tornillo.getStockMinimo(),
+                    tornillo.getPrecioVenta(), estado, tornillo.getUbicacion()
             });
         }
         lblConteo.setText(lista.size() + " producto(s) encontrado(s)");

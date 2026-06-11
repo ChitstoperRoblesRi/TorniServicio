@@ -236,13 +236,13 @@ public class SalidasPanel extends JPanel {
         lblStock.setFont(AppTheme.FONT_SMALL);
         lblStock.setForeground(AppTheme.SUCCESS_TEXT);
         cmbTornillo.addActionListener(e -> {
-            Tornillo t = (Tornillo) cmbTornillo.getSelectedItem();
-            if (t != null) {
-                int stock = t.getStockActual();
-                lblStock.setText("Stock disponible: " + stock + " " + t.getUnidadMedida());
-                lblStock.setForeground(stock <= t.getStockMinimo() ? AppTheme.WARNING : AppTheme.SUCCESS_TEXT);
-                if (t.getPrecioVenta() != null)
-                    txtPrecio.setText(t.getPrecioVenta().toString());
+            Tornillo tornillo = (Tornillo) cmbTornillo.getSelectedItem();
+            if (tornillo != null) {
+                int stock = tornillo.getStockActual();
+                lblStock.setText("Stock disponible: " + stock + " " + tornillo.getUnidadMedida());
+                lblStock.setForeground(stock <= tornillo.getStockMinimo() ? AppTheme.WARNING : AppTheme.SUCCESS_TEXT);
+                if (tornillo.getPrecioVenta() != null)
+                    txtPrecio.setText(tornillo.getPrecioVenta().toString());
             }
         });
         if (cmbTornillo.getItemCount() > 0)
@@ -271,14 +271,14 @@ public class SalidasPanel extends JPanel {
         btnCancel.addActionListener(e -> dlg.dispose());
         btnGuardar.addActionListener(e -> {
             try {
-                Tornillo t = (Tornillo) cmbTornillo.getSelectedItem();
+                Tornillo tornillo = (Tornillo) cmbTornillo.getSelectedItem();
                 int cantidad = Integer.parseInt(txtCantidad.getText().trim());
                 BigDecimal precio = new BigDecimal(txtPrecio.getText().trim());
                 if (cantidad <= 0)
                     throw new IllegalArgumentException("Cantidad debe ser mayor a 0");
 
-                Salida s = new Salida(
-                    folio, t.getId(),
+                Salida salida = new Salida(
+                    folio, tornillo.getId(),
                     SessionManager.getInstance().getUsuarioActual().getId(),
                     cantidad, precio, precio.multiply(BigDecimal.valueOf(cantidad)),
                     cmbMotivo.getSelectedItem().toString(),
@@ -286,7 +286,7 @@ public class SalidasPanel extends JPanel {
                     txtObs.getText().trim()
                 );
 
-                salidaService.registrar(s);
+                salidaService.registrar(salida);
                 dlg.dispose();
                 mainFrame.actualizarBadgeAlertas();
                 refresh();
@@ -321,14 +321,14 @@ public class SalidasPanel extends JPanel {
 
     private void poblarTabla(List<Salida> lista) {
         tableModel.setRowCount(0);
-        for (Salida s : lista) {
+        for (Salida salida : lista) {
             tableModel.addRow(new Object[] {
-                    s.getId(), s.getFolio(),
-                    s.getTornilloNombre(), s.getTornilloCodigo(),
-                    s.getMotivo(), s.getCliente(),
-                    s.getCantidad(), s.getPrecioUnitario(), s.getTotal(),
-                    s.getUsuarioNombre(),
-                    s.getFecha() != null ? s.getFecha().toString().substring(0, 16) : ""
+                    salida.getId(), salida.getFolio(),
+                    salida.getTornilloNombre(), salida.getTornilloCodigo(),
+                    salida.getMotivo(), salida.getCliente(),
+                    salida.getCantidad(), salida.getPrecioUnitario(), salida.getTotal(),
+                    salida.getUsuarioNombre(),
+                    salida.getFecha() != null ? salida.getFecha().toString().substring(0, 16) : ""
             });
         }
         lblConteo.setText(lista.size() + " salida(s)");

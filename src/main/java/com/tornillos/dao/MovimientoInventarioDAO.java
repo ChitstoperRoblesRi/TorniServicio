@@ -68,15 +68,15 @@ public class MovimientoInventarioDAO {
     }
 
     private MovimientoInventario mapear(ResultSet rs) throws SQLException {
-        MovimientoInventario m = new MovimientoInventario();
-        Timestamp ts = rs.getTimestamp("fecha");
-        if (ts != null) m.setFecha(ts.toLocalDateTime());
-        m.setTornilloNombre(rs.getString("tornillo_nombre"));
-        m.setTornilloCodigo(rs.getString("tornillo_codigo"));
-        m.setTipoMovimiento(rs.getString("tipo_movimiento"));
-        m.setCantidad(rs.getInt("cantidad"));
-        m.setStockResultante(rs.getInt("stock_resultante"));
-        m.setUsuarioNombre(rs.getString("usuario_nombre"));
-        return m;
+        MovimientoInventario movimiento = new MovimientoInventario();
+        Timestamp fechaTs = rs.getTimestamp("fecha");
+        if (fechaTs != null) movimiento.setFecha(fechaTs.toLocalDateTime());
+        movimiento.setTornilloNombre(rs.getString("tornillo_nombre"));
+        movimiento.setTornilloCodigo(rs.getString("tornillo_codigo"));
+        movimiento.setTipoMovimiento(rs.getString("tipo_movimiento"));
+        movimiento.setCantidad(rs.getInt("cantidad"));
+        movimiento.setStockResultante(rs.getInt("stock_resultante"));
+        movimiento.setUsuarioNombre(rs.getString("usuario_nombre"));
+        return movimiento;
     }
 }

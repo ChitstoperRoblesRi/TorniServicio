@@ -27,12 +27,12 @@ public class ConfiguracionDAO {
         }
     }
 
-    public void guardar(String clave, String valor) throws SQLException {
+    public boolean guardar(String clave, String valor) throws SQLException {
         try (PreparedStatement ps = DatabaseConfig.getConnection().prepareStatement(
                 "INSERT INTO configuracion (clave, valor) VALUES (?,?) " +
                 "ON CONFLICT (clave) DO UPDATE SET valor=EXCLUDED.valor")) {
             ps.setString(1, clave); ps.setString(2, valor);
-            ps.executeUpdate();
+            return ps.executeUpdate() > 0;
         }
     }
 }

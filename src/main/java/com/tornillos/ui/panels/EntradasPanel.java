@@ -252,14 +252,14 @@ public class EntradasPanel extends JPanel {
         btnCancel.addActionListener(e -> dlg.dispose());
         btnGuardar.addActionListener(e -> {
             try {
-                Tornillo t = (Tornillo) cmbTornillo.getSelectedItem();
+                Tornillo tornillo = (Tornillo) cmbTornillo.getSelectedItem();
                 int cantidad = Integer.parseInt(txtCantidad.getText().trim());
                 BigDecimal precio = new BigDecimal(txtPrecio.getText().trim());
                 if (cantidad <= 0)
                     throw new IllegalArgumentException("Cantidad debe ser mayor a 0");
 
                 Entrada entrada = new Entrada(
-                    folio, t.getId(),
+                    folio, tornillo.getId(),
                     SessionManager.getInstance().getUsuarioActual().getId(),
                     cantidad, precio, precio.multiply(BigDecimal.valueOf(cantidad)),
                     txtFactura.getText().trim(),
@@ -304,13 +304,13 @@ public class EntradasPanel extends JPanel {
 
     private void poblarTabla(List<Entrada> lista) {
         tableModel.setRowCount(0);
-        for (Entrada e : lista) {
+        for (Entrada entrada : lista) {
             tableModel.addRow(new Object[] {
-                    e.getId(), e.getFolio(),
-                    e.getTornilloNombre(), e.getTornilloCodigo(),
-                    e.getCantidad(), e.getPrecioUnitario(), e.getTotal(),
-                    e.getUsuarioNombre(),
-                    e.getFecha() != null ? e.getFecha().toString().substring(0, 16) : ""
+                    entrada.getId(), entrada.getFolio(),
+                    entrada.getTornilloNombre(), entrada.getTornilloCodigo(),
+                    entrada.getCantidad(), entrada.getPrecioUnitario(), entrada.getTotal(),
+                    entrada.getUsuarioNombre(),
+                    entrada.getFecha() != null ? entrada.getFecha().toString().substring(0, 16) : ""
             });
         }
         lblConteo.setText(lista.size() + " entrada(s)");

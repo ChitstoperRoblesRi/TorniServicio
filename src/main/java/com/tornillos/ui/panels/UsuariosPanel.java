@@ -274,17 +274,16 @@ public class UsuariosPanel extends JPanel {
         btnGuardar.addActionListener(e -> {
             try {
                 if (usuario == null) {
-                    Usuario u = new Usuario(
-                        txtNombre.getText().trim(),
-                        txtApellido.getText().trim(),
-                        txtEmail.getText().trim(),
-                        txtUsername.getText().trim(),
-                        cmbRol.getSelectedIndex() == 1 ? 1 : 2
-                    );
+                    Usuario nuevoUsuario = new Usuario(
+                            txtNombre.getText().trim(),
+                            txtApellido.getText().trim(),
+                            txtEmail.getText().trim(),
+                            txtUsername.getText().trim(),
+                            cmbRol.getSelectedIndex() == 1 ? 1 : 2);
                     String pass = new String(txtPass.getPassword());
                     if (pass.isBlank())
                         throw new IllegalArgumentException("La contraseña es obligatoria");
-                    usuarioService.crear(u, pass);
+                    usuarioService.crear(nuevoUsuario, pass);
                 } else {
                     usuario.setNombre(txtNombre.getText().trim());
                     usuario.setApellido(txtApellido.getText().trim());
@@ -321,17 +320,16 @@ public class UsuariosPanel extends JPanel {
 
     private void abrirDialogoPorFila(int row) {
         String rol = tableModel.getValueAt(row, 5).toString();
-        Usuario u = new Usuario(
-            (int) tableModel.getValueAt(row, 0),
-            tableModel.getValueAt(row, 2).toString(),
-            tableModel.getValueAt(row, 3).toString(),
-            tableModel.getValueAt(row, 4).toString(),
-            tableModel.getValueAt(row, 1).toString(),
-            rol,
-            "GERENTE".equals(rol) ? 1 : 2,
-            "Activo".equals(tableModel.getValueAt(row, 6).toString())
-        );
-        abrirDialogoUsuario(u);
+        Usuario usuario = new Usuario(
+                (int) tableModel.getValueAt(row, 0),
+                tableModel.getValueAt(row, 2).toString(),
+                tableModel.getValueAt(row, 3).toString(),
+                tableModel.getValueAt(row, 4).toString(),
+                tableModel.getValueAt(row, 1).toString(),
+                rol,
+                "GERENTE".equals(rol) ? 1 : 2,
+                "Activo".equals(tableModel.getValueAt(row, 6).toString()));
+        abrirDialogoUsuario(usuario);
     }
 
     private void cambiarPassword(int userId) {
@@ -368,12 +366,12 @@ public class UsuariosPanel extends JPanel {
 
     private void poblarTabla(List<Usuario> lista) {
         tableModel.setRowCount(0);
-        for (Usuario u : lista) {
+        for (Usuario usuario : lista) {
             tableModel.addRow(new Object[] {
-                    u.getId(), u.getUsername(), u.getNombre(), u.getApellido(),
-                    u.getEmail(), u.getRol(),
-                    u.isActivo() ? "Activo" : "Inactivo",
-                    u.getUltimaSesion() != null ? u.getUltimaSesion().toString().substring(0, 16) : "Nunca"
+                    usuario.getId(), usuario.getUsername(), usuario.getNombre(), usuario.getApellido(),
+                    usuario.getEmail(), usuario.getRol(),
+                    usuario.isActivo() ? "Activo" : "Inactivo",
+                    usuario.getUltimaSesion() != null ? usuario.getUltimaSesion().toString().substring(0, 16) : "Nunca"
             });
         }
         lblConteo.setText(lista.size() + " usuario(s)");

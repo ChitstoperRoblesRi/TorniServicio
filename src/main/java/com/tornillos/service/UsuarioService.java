@@ -18,24 +18,24 @@ public class UsuarioService {
         return usuarioDAO.listarTodos();
     }
 
-    public void crear(Usuario u, String password) throws SQLException {
-        usuarioDAO.crear(u, password);
+    public boolean crear(Usuario usuario, String password) throws SQLException {
+        return usuarioDAO.crear(usuario, password);
     }
 
-    public void actualizar(Usuario u) throws SQLException {
-        usuarioDAO.actualizar(u);
+    public boolean actualizar(Usuario usuario) throws SQLException {
+        return usuarioDAO.actualizar(usuario);
     }
 
-    public void cambiarPassword(int userId, String newPassword) throws SQLException {
-        usuarioDAO.cambiarPassword(userId, newPassword);
+    public boolean cambiarPassword(int userId, String newPassword) throws SQLException {
+        return usuarioDAO.cambiarPassword(userId, newPassword);
     }
 
-    public void habilitar(int id) throws SQLException {
-        usuarioDAO.habilitar(id);
+    public boolean habilitar(int id) throws SQLException {
+        return usuarioDAO.habilitar(id);
     }
 
-    public void inhabilitar(int id) throws SQLException {
-        usuarioDAO.inhabilitar(id);
+    public boolean inhabilitar(int id) throws SQLException {
+        return usuarioDAO.inhabilitar(id);
     }
 
     public List<Usuario> buscar(String termino) throws SQLException {

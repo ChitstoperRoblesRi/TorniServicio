@@ -22,19 +22,19 @@ public class TornilloService {
         return tornilloDAO.obtenerPorId(id);
     }
 
-    public void crear(Tornillo t) throws SQLException {
-        tornilloDAO.crear(t);
+    public boolean crear(Tornillo tornillo) throws SQLException {
+        return tornilloDAO.crear(tornillo);
     }
 
-    public void actualizar(Tornillo t) throws SQLException {
-        tornilloDAO.actualizar(t);
+    public boolean actualizar(Tornillo tornillo) throws SQLException {
+        return tornilloDAO.actualizar(tornillo);
     }
 
-    public void darDeBaja(int id) throws SQLException {
-        tornilloDAO.darDeBaja(id);
+    public boolean darDeBaja(int id) throws SQLException {
+        return tornilloDAO.eliminar(id);
     }
 
-    public void eliminar(int id) throws SQLException {
-        tornilloDAO.eliminar(id);
+    public boolean eliminar(int id) throws SQLException {
+        return tornilloDAO.eliminar(id);
     }
 }

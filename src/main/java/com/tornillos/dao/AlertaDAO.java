@@ -9,34 +9,35 @@ import java.util.List;
 
 public class AlertaDAO {
 
-    public void crear(Alerta a) throws SQLException {
+    public boolean crear(Alerta alerta) throws SQLException {
         String check = "SELECT id FROM alertas WHERE tornillo_id=? AND tipo=? LIMIT 1";
         try (PreparedStatement ps = DatabaseConfig.getConnection().prepareStatement(check)) {
-            ps.setInt(1, a.getTornilloId());
-            ps.setString(2, a.getTipo());
+            ps.setInt(1, alerta.getTornilloId());
+            ps.setString(2, alerta.getTipo());
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
                     int existingId = rs.getInt("id");
                     String update = "UPDATE alertas SET mensaje=?, creada_en=NOW() WHERE id=?";
                     try (PreparedStatement ps2 = DatabaseConfig.getConnection().prepareStatement(update)) {
-                        ps2.setString(1, a.getMensaje());
+                        ps2.setString(1, alerta.getMensaje());
                         ps2.setInt(2, existingId);
                         ps2.executeUpdate();
                     }
-                    a.setId(existingId);
-                    return;
+                    alerta.setId(existingId);
+                    return true;
                 }
             }
         }
         String sql = "INSERT INTO alertas (tornillo_id, tipo, mensaje) VALUES (?,?,?)";
         try (PreparedStatement ps = DatabaseConfig.getConnection().prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-            ps.setInt(1, a.getTornilloId());
-            ps.setString(2, a.getTipo());
-            ps.setString(3, a.getMensaje());
+            ps.setInt(1, alerta.getTornilloId());
+            ps.setString(2, alerta.getTipo());
+            ps.setString(3, alerta.getMensaje());
             ps.executeUpdate();
             try (ResultSet keys = ps.getGeneratedKeys()) {
-                if (keys.next()) a.setId(keys.getInt(1));
+                if (keys.next()) alerta.setId(keys.getInt(1));
             }
+            return true;
         }
     }
 
@@ -65,17 +66,18 @@ public class AlertaDAO {
         }
     }
 
-    public void eliminar(int id) throws SQLException {
+    public boolean eliminar(int id) throws SQLException {
         try (PreparedStatement ps = DatabaseConfig.getConnection()
                 .prepareStatement("DELETE FROM alertas WHERE id=?")) {
             ps.setInt(1, id);
-            ps.executeUpdate();
+            return ps.executeUpdate() > 0;
         }
     }
 
-    public void eliminarTodas() throws SQLException {
+    public boolean eliminarTodas() throws SQLException {
         try (Statement st = DatabaseConfig.getConnection().createStatement()) {
             st.executeUpdate("DELETE FROM alertas");
+            return true;
         }
     }
 
@@ -113,11 +115,11 @@ public class AlertaDAO {
         return lista;
     }
 
-    public void marcarEnviadaEmail(int id) throws SQLException {
+    public boolean marcarEnviadaEmail(int id) throws SQLException {
         try (PreparedStatement ps = DatabaseConfig.getConnection()
                 .prepareStatement("UPDATE alertas SET enviada_email=true WHERE id=?")) {
             ps.setInt(1, id);
-            ps.executeUpdate();
+            return ps.executeUpdate() > 0;
         }
     }
 
@@ -151,18 +153,18 @@ public class AlertaDAO {
     }
 
     private Alerta mapear(ResultSet rs) throws SQLException {
-        Alerta a = new Alerta();
-        a.setId(rs.getInt("id"));
-        a.setTornilloId(rs.getInt("tornillo_id"));
-        a.setTornilloNombre(rs.getString("tornillo_nombre"));
-        a.setTornilloCodigo(rs.getString("tornillo_codigo"));
-        a.setTipo(rs.getString("tipo"));
-        a.setMensaje(rs.getString("mensaje"));
-        a.setEnviadaEmail(rs.getBoolean("enviada_email"));
-        java.sql.Timestamp c = rs.getTimestamp("creada_en");
-        if (c != null)
-            a.setCreadaEn(c.toLocalDateTime());
-        return a;
+        Alerta alerta = new Alerta();
+        alerta.setId(rs.getInt("id"));
+        alerta.setTornilloId(rs.getInt("tornillo_id"));
+        alerta.setTornilloNombre(rs.getString("tornillo_nombre"));
+        alerta.setTornilloCodigo(rs.getString("tornillo_codigo"));
+        alerta.setTipo(rs.getString("tipo"));
+        alerta.setMensaje(rs.getString("mensaje"));
+        alerta.setEnviadaEmail(rs.getBoolean("enviada_email"));
+        Timestamp creadaEnTs = rs.getTimestamp("creada_en");
+        if (creadaEnTs != null)
+            alerta.setCreadaEn(creadaEnTs.toLocalDateTime());
+        return alerta;
     }
 
 }

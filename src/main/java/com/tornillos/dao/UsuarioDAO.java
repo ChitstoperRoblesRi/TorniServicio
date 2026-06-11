@@ -39,40 +39,40 @@ public class UsuarioDAO {
         return lista;
     }
 
-    public void crear(Usuario u, String password) throws SQLException {
+    public boolean crear(Usuario usuario, String password) throws SQLException {
         String sql = "INSERT INTO usuarios (nombre, apellido, email, username, password_hash, rol_id, activo) " +
                 "VALUES (?, ?, ?, ?, crypt(?, gen_salt('bf')), ?, ?)";
         try (PreparedStatement ps = DatabaseConfig.getConnection().prepareStatement(sql)) {
-            ps.setString(1, u.getNombre());
-            ps.setString(2, u.getApellido());
-            ps.setString(3, u.getEmail());
-            ps.setString(4, u.getUsername());
+            ps.setString(1, usuario.getNombre());
+            ps.setString(2, usuario.getApellido());
+            ps.setString(3, usuario.getEmail());
+            ps.setString(4, usuario.getUsername());
             ps.setString(5, password);
-            ps.setInt(6, u.getRolId());
+            ps.setInt(6, usuario.getRolId());
             ps.setBoolean(7, true);
-            ps.executeUpdate();
+            return ps.executeUpdate() > 0;
         }
     }
 
-    public void actualizar(Usuario u) throws SQLException {
+    public boolean actualizar(Usuario usuario) throws SQLException {
         String sql = "UPDATE usuarios SET nombre=?, apellido=?, email=?, rol_id=?, activo=? WHERE id=?";
         try (PreparedStatement ps = DatabaseConfig.getConnection().prepareStatement(sql)) {
-            ps.setString(1, u.getNombre());
-            ps.setString(2, u.getApellido());
-            ps.setString(3, u.getEmail());
-            ps.setInt(4, u.getRolId());
-            ps.setBoolean(5, u.isActivo());
-            ps.setInt(6, u.getId());
-            ps.executeUpdate();
+            ps.setString(1, usuario.getNombre());
+            ps.setString(2, usuario.getApellido());
+            ps.setString(3, usuario.getEmail());
+            ps.setInt(4, usuario.getRolId());
+            ps.setBoolean(5, usuario.isActivo());
+            ps.setInt(6, usuario.getId());
+            return ps.executeUpdate() > 0;
         }
     }
 
-    public void cambiarPassword(int userId, String newPassword) throws SQLException {
+    public boolean cambiarPassword(int userId, String newPassword) throws SQLException {
         String sql = "UPDATE usuarios SET password_hash = crypt(?, gen_salt('bf')) WHERE id=?";
         try (PreparedStatement ps = DatabaseConfig.getConnection().prepareStatement(sql)) {
             ps.setString(1, newPassword);
             ps.setInt(2, userId);
-            ps.executeUpdate();
+            return ps.executeUpdate() > 0;
         }
     }
 
@@ -96,19 +96,19 @@ public class UsuarioDAO {
         return lista;
     }
 
-    public void inhabilitar(int id) throws SQLException {
+    public boolean inhabilitar(int id) throws SQLException {
         try (PreparedStatement ps = DatabaseConfig.getConnection()
                 .prepareStatement("UPDATE usuarios SET activo=false WHERE id=?")) {
             ps.setInt(1, id);
-            ps.executeUpdate();
+            return ps.executeUpdate() > 0;
         }
     }
 
-    public void habilitar(int id) throws SQLException {
+    public boolean habilitar(int id) throws SQLException {
         try (PreparedStatement ps = DatabaseConfig.getConnection()
                 .prepareStatement("UPDATE usuarios SET activo=true WHERE id=?")) {
             ps.setInt(1, id);
-            ps.executeUpdate();
+            return ps.executeUpdate() > 0;
         }
     }
 
@@ -121,29 +121,29 @@ public class UsuarioDAO {
     }
 
     private Usuario mapear(ResultSet rs) throws SQLException {
-        Usuario u = new Usuario();
-        u.setId(rs.getInt("id"));
-        u.setNombre(rs.getString("nombre"));
-        u.setApellido(rs.getString("apellido"));
-        u.setEmail(rs.getString("email"));
-        u.setUsername(rs.getString("username"));
-        u.setRol(rs.getString("rol"));
-        u.setRolId(rs.getInt("rol_id"));
-        u.setActivo(rs.getBoolean("activo"));
-        java.sql.Timestamp ts = rs.getTimestamp("creado_en");
-        if (ts != null)
-            u.setCreadoEn(ts.toLocalDateTime());
-        java.sql.Timestamp ul = rs.getTimestamp("ultima_sesion");
-        if (ul != null)
-            u.setUltimaSesion(ul.toLocalDateTime());
-        return u;
+        Usuario usuario = new Usuario();
+        usuario.setId(rs.getInt("id"));
+        usuario.setNombre(rs.getString("nombre"));
+        usuario.setApellido(rs.getString("apellido"));
+        usuario.setEmail(rs.getString("email"));
+        usuario.setUsername(rs.getString("username"));
+        usuario.setRol(rs.getString("rol"));
+        usuario.setRolId(rs.getInt("rol_id"));
+        usuario.setActivo(rs.getBoolean("activo"));
+        Timestamp creadoEnTs = rs.getTimestamp("creado_en");
+        if (creadoEnTs != null)
+            usuario.setCreadoEn(creadoEnTs.toLocalDateTime());
+        Timestamp ultimaSesionTs = rs.getTimestamp("ultima_sesion");
+        if (ultimaSesionTs != null)
+            usuario.setUltimaSesion(ultimaSesionTs.toLocalDateTime());
+        return usuario;
     }
 
-    public void eliminar(int id) throws SQLException {
+    public boolean eliminar(int id) throws SQLException {
         try (PreparedStatement ps = DatabaseConfig.getConnection()
                 .prepareStatement("UPDATE usuarios SET activo=false WHERE id=?")) {
             ps.setInt(1, id);
-            ps.executeUpdate();
+            return ps.executeUpdate() > 0;
         }
     }
 

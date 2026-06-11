@@ -14,14 +14,16 @@ public class EntradaService {
     private final TornilloDAO tornilloDAO = new TornilloDAO();
     private final AlertaService alertaService = new AlertaService();
 
-    public void registrar(Entrada entrada) throws SQLException {
-        entradaDAO.registrar(entrada);
+    public boolean registrar(Entrada entrada) throws SQLException {
+        boolean resultado = entradaDAO.registrar(entrada);
         alertaService.verificarAlertas();
+        return resultado;
     }
 
-    public void eliminar(int id) throws SQLException {
-        entradaDAO.eliminar(id);
+    public boolean eliminar(int id) throws SQLException {
+        boolean resultado = entradaDAO.eliminar(id);
         alertaService.verificarAlertas();
+        return resultado;
     }
 
     public List<Entrada> buscar(String termino, String desde, String hasta) throws SQLException {

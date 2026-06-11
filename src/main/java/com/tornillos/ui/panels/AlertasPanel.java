@@ -267,13 +267,13 @@ public class AlertasPanel extends JPanel {
             protected void done() {
                 try {
                     List<Alerta> lista = get();
-                    for (Alerta a : lista) {
+                    for (Alerta alerta : lista) {
                         histModel.addRow(new Object[] {
-                                a.getId(), a.getTipo(),
-                                a.getTornilloNombre(), a.getTornilloCodigo(),
-                                a.getMensaje(),
-                                a.isEnviadaEmail() ? "Si" : "No",
-                                a.getCreadaEn() != null ? a.getCreadaEn().toString().substring(0, 16) : ""
+                                alerta.getId(), alerta.getTipo(),
+                                alerta.getTornilloNombre(), alerta.getTornilloCodigo(),
+                                alerta.getMensaje(),
+                                alerta.isEnviadaEmail() ? "Si" : "No",
+                                alerta.getCreadaEn() != null ? alerta.getCreadaEn().toString().substring(0, 16) : ""
                         });
                     }
                 } catch (Exception ex) {
@@ -287,12 +287,12 @@ public class AlertasPanel extends JPanel {
 
     private void poblarTabla(List<Alerta> lista) {
         tableModel.setRowCount(0);
-        for (Alerta a : lista) {
+        for (Alerta alerta : lista) {
             tableModel.addRow(new Object[] {
-                    a.getId(), a.getTipo(),
-                    a.getTornilloNombre(), a.getTornilloCodigo(),
-                    a.getMensaje(),
-                    a.getCreadaEn() != null ? a.getCreadaEn().toString().substring(0, 16) : ""
+                    alerta.getId(), alerta.getTipo(),
+                    alerta.getTornilloNombre(), alerta.getTornilloCodigo(),
+                    alerta.getMensaje(),
+                    alerta.getCreadaEn() != null ? alerta.getCreadaEn().toString().substring(0, 16) : ""
             });
         }
         lblConteo.setText(lista.size() + " alerta(s) activa(s)");

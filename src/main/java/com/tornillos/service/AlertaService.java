@@ -31,46 +31,50 @@ public class AlertaService {
     public void verificarAlertas() {
         try {
             List<Tornillo> stockBajo = tornilloDAO.listarConStockBajo();
-            Map<String, String> conf = confDAO.obtenerTodas();
+            Map<String, String> config = confDAO.obtenerTodas();
             boolean emailActivo = "true".equalsIgnoreCase(
-                    conf.getOrDefault("alertas_email_activo", "false"));
+                    config.getOrDefault("alertas_email_activo", "false"));
 
-            for (Tornillo t : stockBajo) {
-                String tipo;
-                String msg;
+            for (Tornillo tornillo : stockBajo) {
+                String tipo = determinarTipoAlerta(tornillo);
+                String mensaje = determinarMensajeAlerta(tornillo, tipo);
 
-                if (t.getStockActual() == 0) {
-                    tipo = "SIN_STOCK";
-                    msg = "SIN STOCK: " + t.getNombre() + " (" + t.getCodigo()
-                            + ") — Stock: 0 unidades";
-                } else if (t.getStockActual() <= t.getStockMinimo() / 2) {
-                    tipo = "STOCK_CRITICO";
-                    msg = "STOCK CRITICO: " + t.getNombre() + " (" + t.getCodigo()
-                            + ") — Stock: " + t.getStockActual()
-                            + " | Minimo: " + t.getStockMinimo();
-                } else {
-                    tipo = "STOCK_BAJO";
-                    msg = "STOCK BAJO: " + t.getNombre() + " (" + t.getCodigo()
-                            + ") — Stock: " + t.getStockActual()
-                            + " | Minimo: " + t.getStockMinimo();
-                }
+                Alerta alerta = new Alerta(tornillo.getId(), tornillo.getNombre(), tipo, mensaje);
+                alerta.setTornilloCodigo(tornillo.getCodigo());
 
-                Alerta alerta = new Alerta(t.getId(), t.getNombre(), tipo, msg);
-                alerta.setTornilloCodigo(t.getCodigo());
-
-                // crear() ya evita duplicados; si ya existe, no inserta
                 alertaDAO.crear(alerta);
 
-                // Solo enviar email si la alerta es nueva (no enviada aún)
                 if (emailActivo) {
-                    Alerta existente = alertaDAO.buscarNoEnviada(t.getId(), tipo);
+                    Alerta existente = alertaDAO.buscarNoEnviada(tornillo.getId(), tipo);
                     if (existente != null) {
-                        enviarEmail(existente, conf);
+                        enviarEmail(existente, config);
                     }
                 }
             }
         } catch (SQLException e) {
             LOG.warning("Error verificando alertas: " + e.getMessage());
+        }
+    }
+
+    private String determinarTipoAlerta(Tornillo tornillo) {
+        if (tornillo.getStockActual() == 0) return "SIN_STOCK";
+        if (tornillo.getStockActual() <= tornillo.getStockMinimo() / 2) return "STOCK_CRITICO";
+        return "STOCK_BAJO";
+    }
+
+    private String determinarMensajeAlerta(Tornillo tornillo, String tipo) {
+        switch (tipo) {
+            case "SIN_STOCK":
+                return "SIN STOCK: " + tornillo.getNombre() + " (" + tornillo.getCodigo()
+                        + ") — Stock: 0 unidades";
+            case "STOCK_CRITICO":
+                return "STOCK CRITICO: " + tornillo.getNombre() + " (" + tornillo.getCodigo()
+                        + ") — Stock: " + tornillo.getStockActual()
+                        + " | Minimo: " + tornillo.getStockMinimo();
+            default:
+                return "STOCK BAJO: " + tornillo.getNombre() + " (" + tornillo.getCodigo()
+                        + ") — Stock: " + tornillo.getStockActual()
+                        + " | Minimo: " + tornillo.getStockMinimo();
         }
     }
 
@@ -80,15 +84,15 @@ public class AlertaService {
      */
     public void reenviarNoLeidasPorEmail() {
         try {
-            Map<String, String> conf = confDAO.obtenerTodas();
+            Map<String, String> config = confDAO.obtenerTodas();
             boolean emailActivo = "true".equalsIgnoreCase(
-                    conf.getOrDefault("alertas_email_activo", "false"));
+                    config.getOrDefault("alertas_email_activo", "false"));
             if (!emailActivo)
                 return;
 
             List<Alerta> pendientes = alertaDAO.listarNoEnviadas();
-            for (Alerta a : pendientes) {
-                enviarEmail(a, conf);
+            for (Alerta alerta : pendientes) {
+                enviarEmail(alerta, config);
             }
         } catch (SQLException e) {
             LOG.warning("Error reenviando alertas: " + e.getMessage());
@@ -112,12 +116,12 @@ public class AlertaService {
         return alertaDAO.buscar(termino);
     }
 
-    public void eliminar(int id) throws SQLException {
-        alertaDAO.eliminar(id);
+    public boolean eliminar(int id) throws SQLException {
+        return alertaDAO.eliminar(id);
     }
 
-    public void eliminarTodas() throws SQLException {
-        alertaDAO.eliminarTodas();
+    public boolean eliminarTodas() throws SQLException {
+        return alertaDAO.eliminarTodas();
     }
 
     // ── Envío de email ────────────────────────────────────────

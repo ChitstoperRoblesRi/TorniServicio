@@ -170,11 +170,11 @@ public class ReportesPanel extends JPanel {
             tableModel.setColumnIdentifiers(new String[] {
                     "Fecha/Hora", "Tornillo", "Codigo", "Tipo", "Cantidad", "Stock resultante", "Usuario" });
             tableModel.setRowCount(0);
-            for (MovimientoInventario m : lista) {
+            for (MovimientoInventario movimiento : lista) {
                 tableModel.addRow(new Object[] {
-                        m.getFecha() != null ? m.getFecha().toString().substring(0, 16) : "",
-                        m.getTornilloNombre(), m.getTornilloCodigo(), m.getTipoMovimiento(),
-                        m.getCantidad(), m.getStockResultante(), m.getUsuarioNombre()
+                        movimiento.getFecha() != null ? movimiento.getFecha().toString().substring(0, 16) : "",
+                        movimiento.getTornilloNombre(), movimiento.getTornilloCodigo(), movimiento.getTipoMovimiento(),
+                        movimiento.getCantidad(), movimiento.getStockResultante(), movimiento.getUsuarioNombre()
                 });
             }
             lblResumen.setText(lista.size() + " movimiento(s) en el inventario");

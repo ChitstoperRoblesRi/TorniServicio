@@ -9,31 +9,32 @@ import java.util.List;
 
 public class SalidaDAO {
 
-    public void registrar(Salida s) throws SQLException {
+    public boolean registrar(Salida salida) throws SQLException {
         Connection conn = DatabaseConfig.getConnection();
         conn.setAutoCommit(false);
         try {
             String sql = "INSERT INTO salidas (folio, tornillo_id, usuario_id, cantidad, " +
                          "precio_unitario, total, motivo, cliente, observaciones) VALUES (?,?,?,?,?,?,?,?,?)";
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
-                ps.setString(1, s.getFolio());
-                ps.setInt(2, s.getTornilloId());
-                ps.setInt(3, s.getUsuarioId());
-                ps.setInt(4, s.getCantidad());
-                ps.setBigDecimal(5, s.getPrecioUnitario());
-                ps.setBigDecimal(6, s.getTotal());
-                ps.setString(7, s.getMotivo());
-                ps.setString(8, s.getCliente());
-                ps.setString(9, s.getObservaciones());
+                ps.setString(1, salida.getFolio());
+                ps.setInt(2, salida.getTornilloId());
+                ps.setInt(3, salida.getUsuarioId());
+                ps.setInt(4, salida.getCantidad());
+                ps.setBigDecimal(5, salida.getPrecioUnitario());
+                ps.setBigDecimal(6, salida.getTotal());
+                ps.setString(7, salida.getMotivo());
+                ps.setString(8, salida.getCliente());
+                ps.setString(9, salida.getObservaciones());
                 ps.executeUpdate();
             }
             try (PreparedStatement ps = conn.prepareStatement(
                     "UPDATE tornillos SET stock_actual = stock_actual - ? WHERE id=?")) {
-                ps.setInt(1, s.getCantidad());
-                ps.setInt(2, s.getTornilloId());
+                ps.setInt(1, salida.getCantidad());
+                ps.setInt(2, salida.getTornilloId());
                 ps.executeUpdate();
             }
             conn.commit();
+            return true;
         } catch (SQLException ex) {
             conn.rollback();
             throw ex;
@@ -50,28 +51,28 @@ public class SalidaDAO {
     }
 
     private Salida mapear(ResultSet rs) throws SQLException {
-        Salida s = new Salida();
-        s.setId(rs.getInt("id"));
-        s.setFolio(rs.getString("folio"));
-        s.setTornilloId(rs.getInt("tornillo_id"));
-        s.setTornilloNombre(rs.getString("tornillo_nombre"));
-        s.setTornilloCodigo(rs.getString("tornillo_codigo"));
-        s.setUsuarioId(rs.getInt("usuario_id"));
-        s.setUsuarioNombre(rs.getString("usuario_nombre"));
-        s.setCantidad(rs.getInt("cantidad"));
-        s.setPrecioUnitario(rs.getBigDecimal("precio_unitario"));
-        s.setTotal(rs.getBigDecimal("total"));
-        s.setMotivo(rs.getString("motivo"));
-        s.setCliente(rs.getString("cliente"));
-        s.setObservaciones(rs.getString("observaciones"));
-        Timestamp ts = rs.getTimestamp("fecha");
-        if (ts != null) s.setFecha(ts.toLocalDateTime());
-        return s;
+        Salida salida = new Salida();
+        salida.setId(rs.getInt("id"));
+        salida.setFolio(rs.getString("folio"));
+        salida.setTornilloId(rs.getInt("tornillo_id"));
+        salida.setTornilloNombre(rs.getString("tornillo_nombre"));
+        salida.setTornilloCodigo(rs.getString("tornillo_codigo"));
+        salida.setUsuarioId(rs.getInt("usuario_id"));
+        salida.setUsuarioNombre(rs.getString("usuario_nombre"));
+        salida.setCantidad(rs.getInt("cantidad"));
+        salida.setPrecioUnitario(rs.getBigDecimal("precio_unitario"));
+        salida.setTotal(rs.getBigDecimal("total"));
+        salida.setMotivo(rs.getString("motivo"));
+        salida.setCliente(rs.getString("cliente"));
+        salida.setObservaciones(rs.getString("observaciones"));
+        Timestamp fechaTs = rs.getTimestamp("fecha");
+        if (fechaTs != null) salida.setFecha(fechaTs.toLocalDateTime());
+        return salida;
     }
 
 
 
-    public void eliminar(int id) throws SQLException {
+    public boolean eliminar(int id) throws SQLException {
         Connection conn = DatabaseConfig.getConnection();
         conn.setAutoCommit(false);
         try {
@@ -86,7 +87,6 @@ public class SalidaDAO {
                     }
                 }
             }
-            // Revertir stock
             try (PreparedStatement ps = conn.prepareStatement(
                     "UPDATE tornillos SET stock_actual = stock_actual + ? WHERE id=?")) {
                 ps.setInt(1, cantidad); ps.setInt(2, tornilloId);
@@ -96,6 +96,7 @@ public class SalidaDAO {
                 ps.setInt(1, id); ps.executeUpdate();
             }
             conn.commit();
+            return true;
         } catch (SQLException ex) {
             conn.rollback(); throw ex;
         } finally {
