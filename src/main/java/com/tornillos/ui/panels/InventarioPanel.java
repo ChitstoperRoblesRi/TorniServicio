@@ -93,7 +93,6 @@ public class InventarioPanel extends JPanel {
             }
         });
 
-        // INTEGRADO: Añadido "Inactivos" como quinto estado disponible
         cmbEstado = AppTheme
                 .styledCombo(new String[] { "Todos los estados", "Normal", "Stock Bajo", "Crítico", "Sin Stock", "Inactivos" });
         cmbEstado.setPreferredSize(new Dimension(160, 34));
@@ -113,7 +112,6 @@ public class InventarioPanel extends JPanel {
     }
 
     private JScrollPane buildTable() {
-        // AGREGADO: Columna oculta en índice 11 para trackear la propiedad "activo" nativa
         String[] cols = { "ID", "Código", "Nombre", "Material", "Diam.mm", "Long.mm", "Stock", "Mín.",
                 "P.Venta", "Estado", "Ubicación", "Activo" };
         tableModel = new DefaultTableModel(cols, 0) {
@@ -131,7 +129,6 @@ public class InventarioPanel extends JPanel {
 
                 if (!isRowSelected(row)) {
                     if (!esActivo) {
-                        // RENDERIZADO VISUAL PARA INACTIVOS: Toda la fila en gris apagado sutil
                         c.setBackground(row % 2 == 0 ? AppTheme.BG_CARD : AppTheme.BG_SURFACE);
                         c.setForeground(AppTheme.TEXT_MUTED);
                     } else {
@@ -164,7 +161,6 @@ public class InventarioPanel extends JPanel {
 
         table.getColumnModel().getColumn(0).setMinWidth(0);
         table.getColumnModel().getColumn(0).setMaxWidth(0);
-        // Ocultar columna técnica de control "Activo"
         table.getColumnModel().getColumn(11).setMinWidth(0);
         table.getColumnModel().getColumn(11).setMaxWidth(0);
 
@@ -172,6 +168,9 @@ public class InventarioPanel extends JPanel {
         for (int i = 1; i < widths.length && i < table.getColumnCount(); i++) {
             table.getColumnModel().getColumn(i).setPreferredWidth(widths[i]);
         }
+
+        // Construcción e inicialización del JPopupMenu con su lógica interna
+        final JPopupMenu menuContextual = buildContextMenu();
 
         table.addMouseListener(new MouseAdapter() {
             @Override
@@ -185,18 +184,33 @@ public class InventarioPanel extends JPanel {
 
             @Override
             public void mousePressed(MouseEvent e) {
-                int row = table.rowAtPoint(e.getPoint());
-                if (row >= 0)
-                    table.setRowSelectionInterval(row, row);
+                evaluarClicContextual(e);
+            }
+
+            @Override
+            public void mouseReleased(MouseEvent e) {
+                evaluarClicContextual(e);
+            }
+
+            private void evaluarClicContextual(MouseEvent e) {
+                if (e.isPopupTrigger() || SwingUtilities.isRightMouseButton(e)) {
+                    int row = table.rowAtPoint(e.getPoint());
+                    
+                    // CORRECCIÓN DE SEGURIDAD VISUAL: Solo abre el menú si golpea una fila válida
+                    if (row >= 0 && row < table.getRowCount()) {
+                        table.setRowSelectionInterval(row, row);
+                        menuContextual.show(table, e.getX(), e.getY());
+                    } else {
+                        table.clearSelection();
+                    }
+                }
             }
         });
-
-        buildContextMenu();
 
         return AppTheme.darkScrollPane(table);
     }
 
-    private void buildContextMenu() {
+    private JPopupMenu buildContextMenu() {
         JPopupMenu popup = AppTheme.darkPopup();
 
         JMenuItem verItem = AppTheme.darkMenuItem("Ver stock actual", null);
@@ -210,7 +224,6 @@ public class InventarioPanel extends JPanel {
                     abrirDialogoPorId((int) tableModel.getValueAt(row, 0));
             });
 
-            // ELEMENTOS DINÁMICOS DECLARADOS UNA SOLA VEZ
             JMenuItem bajaItem = AppTheme.darkMenuItem("Dar de baja tornillo", null);
             bajaItem.setForeground(AppTheme.WARNING_TEXT);
             bajaItem.addActionListener(ev -> darDeBaja());
@@ -223,24 +236,19 @@ public class InventarioPanel extends JPanel {
             eliminarItem.setForeground(AppTheme.DANGER_TEXT);
             eliminarItem.addActionListener(ev -> eliminarSeleccionado());
 
-            // SOLUCIÓN: Escuchador nativo del PopupMenu
+            // CORRECCIÓN ASÍNCRONA: PopupMenuListener nativo para evitar retrasos y menús vacíos
             popup.addPopupMenuListener(new javax.swing.event.PopupMenuListener() {
                 @Override
                 public void popupMenuWillBecomeVisible(javax.swing.event.PopupMenuEvent e) {
-                    // 1. Limpiar el menú completamente antes de mostrarlo
                     popup.removeAll();
-                    
-                    // 2. Obtener la fila seleccionada de forma segura
                     int row = table.getSelectedRow();
-                    if (row < 0) return; // Si por alguna razón no hay selección, no muestra nada
+                    if (row < 0) return;
 
-                    // 3. Añadir los elementos base estáticos
                     popup.add(verItem);
                     popup.add(AppTheme.darkSeparator());
                     popup.add(editItem);
                     popup.add(AppTheme.darkSeparator());
 
-                    // 4. Evaluar el estado booleano de la columna oculta (índice 11)
                     boolean esActivo = (boolean) tableModel.getValueAt(row, 11);
                     if (esActivo) {
                         popup.add(bajaItem);
@@ -248,23 +256,20 @@ public class InventarioPanel extends JPanel {
                         popup.add(altaItem);
                     }
 
-                    // 5. Añadir la opción de eliminación permanente al final
                     popup.add(AppTheme.darkSeparator());
                     popup.add(eliminarItem);
                     
-                    // 6. Forzar a Swing a recalcular el tamaño del menú flotante
-                    popup.pack();
+                    popup.pack(); // Fuerza el cálculo instantáneo de dimensiones
                 }
 
                 @Override public void popupMenuWillBecomeInvisible(javax.swing.event.PopupMenuEvent e) {}
                 @Override public void popupMenuCanceled(javax.swing.event.PopupMenuEvent e) {}
             });
         } else {
-            // Si no es Gerente, el menú contextual solo lleva la opción de "Ver stock"
             popup.add(verItem);
         }
 
-        table.setComponentPopupMenu(popup);
+        return popup;
     }
 
     private void verStock() {
@@ -325,7 +330,7 @@ public class InventarioPanel extends JPanel {
             return;
         try {
             tornilloDAO.darDeBaja(id);
-            buscarConFiltro(); // Refresca respetando el estado actual de la barra de filtros
+            buscarConFiltro(); 
             JOptionPane.showMessageDialog(this,
                     "'" + nombre + "' ha sido desactivado.", "Listo", JOptionPane.INFORMATION_MESSAGE);
         } catch (Exception ex) {
@@ -445,14 +450,13 @@ public class InventarioPanel extends JPanel {
                     t.getLongitudMm() != null ? t.getLongitudMm() : "",
                     t.getStockActual(), t.getStockMinimo(),
                     t.getPrecioVenta(), estado, t.getUbicacion(),
-                    t.isActivo() // Inyecta la propiedad booleana directo a la columna oculta 11
+                    t.isActivo()
             });
         }
         lblConteo.setText(lista.size() + " producto(s) encontrado(s)");
     }
 
     public void refresh() {
-        // Redirecciona directamente al motor de filtros para asegurar sincronización de estados activos/inactivos
         buscarConFiltro();
     }
 }

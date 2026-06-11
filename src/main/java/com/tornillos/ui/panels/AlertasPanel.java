@@ -5,7 +5,7 @@ import com.tornillos.dao.AlertaDAO;
 import com.tornillos.model.Alerta;
 import com.tornillos.service.SessionManager;
 import com.tornillos.ui.MainFrame;
-//import java.time.LocalDateTime;
+
 import javax.swing.*;
 import javax.swing.table.*;
 import java.awt.*;
@@ -133,27 +133,49 @@ public class AlertasPanel extends JPanel {
         table.getColumnModel().getColumn(0).setMinWidth(0);
         table.getColumnModel().getColumn(0).setMaxWidth(0);
 
-        JPopupMenu popup = AppTheme.darkPopup();
-        JMenuItem itemEliminar = AppTheme.darkMenuItem("Eliminar alerta", null);
-        itemEliminar.addActionListener(e -> eliminarSeleccionada());
-        if (SessionManager.getInstance().isGerente()) {
-            popup.add(itemEliminar);
-        }
-        table.setComponentPopupMenu(popup);
+        // Inicializar JPopupMenu local con retorno controlado
+        final JPopupMenu menuContextual = buildContextMenu();
 
         table.addMouseListener(new MouseAdapter() {
             @Override
             public void mousePressed(MouseEvent e) {
-                if (SwingUtilities.isRightMouseButton(e)) {
+                evaluarClicContextual(e);
+            }
+
+            @Override
+            public void mouseReleased(MouseEvent e) {
+                evaluarClicContextual(e);
+            }
+
+            private void evaluarClicContextual(MouseEvent e) {
+                if (e.isPopupTrigger() || SwingUtilities.isRightMouseButton(e)) {
                     int row = table.rowAtPoint(e.getPoint());
-                    if (row >= 0)
+                    
+                    // CORRECCIÓN: Desplegar el menú únicamente si golpea un registro real de la tabla
+                    if (row >= 0 && row < table.getRowCount()) {
                         table.setRowSelectionInterval(row, row);
+                        menuContextual.show(table, e.getX(), e.getY());
+                    } else {
+                        table.clearSelection();
+                    }
                 }
             }
         });
 
         p.add(AppTheme.darkScrollPane(table), BorderLayout.CENTER);
         return p;
+    }
+
+    private JPopupMenu buildContextMenu() {
+        JPopupMenu popup = AppTheme.darkPopup();
+        JMenuItem itemEliminar = AppTheme.darkMenuItem("Eliminar alerta", null);
+        itemEliminar.addActionListener(e -> eliminarSeleccionada());
+        if (SessionManager.getInstance().isGerente()) {
+            popup.add(itemEliminar);
+        }
+        
+        // CORRECCIÓN: Removida la instrucción table.setComponentPopupMenu(popup) global.
+        return popup;
     }
 
     private void buscar() {
