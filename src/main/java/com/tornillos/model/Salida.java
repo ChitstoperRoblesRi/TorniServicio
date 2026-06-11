@@ -15,6 +15,20 @@ public class Salida {
 
     public Salida() {}
 
+    public Salida(String folio, int tornilloId, int usuarioId, int cantidad,
+                  BigDecimal precioUnitario, BigDecimal total, String motivo,
+                  String cliente, String observaciones) {
+        this.folio = folio;
+        this.tornilloId = tornilloId;
+        this.usuarioId = usuarioId;
+        this.cantidad = cantidad;
+        this.precioUnitario = precioUnitario;
+        this.total = total;
+        this.motivo = motivo;
+        this.cliente = cliente;
+        this.observaciones = observaciones;
+    }
+
     public int getId() { return id; } public void setId(int id) { this.id=id; }
     public String getFolio() { return folio; } public void setFolio(String f) { folio=f; }
     public int getTornilloId() { return tornilloId; } public void setTornilloId(int t) { tornilloId=t; }

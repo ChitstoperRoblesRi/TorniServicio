@@ -1,8 +1,8 @@
 package com.tornillos.ui.panels;
 
 import com.tornillos.config.AppTheme;
-import com.tornillos.dao.AlertaDAO;
 import com.tornillos.model.Alerta;
+import com.tornillos.service.AlertaService;
 import com.tornillos.service.SessionManager;
 import com.tornillos.ui.MainFrame;
 import javax.swing.*;
@@ -18,7 +18,7 @@ public class AlertasPanel extends JPanel {
     private JTextField txtBuscar;
     private JLabel lblConteo;
     private SwingWorker<?, ?> currentWorker;
-    private final AlertaDAO alertaDAO = new AlertaDAO();
+    private final AlertaService alertaService = new AlertaService();
 
     public AlertasPanel(MainFrame frame) {
         this.mainFrame = frame;
@@ -166,7 +166,7 @@ public class AlertasPanel extends JPanel {
         currentWorker = new SwingWorker<List<Alerta>, Void>() {
             @Override
             protected List<Alerta> doInBackground() throws Exception {
-                return alertaDAO.buscar(termino);
+                return alertaService.buscar(termino);
             }
 
             @Override
@@ -191,7 +191,7 @@ public class AlertasPanel extends JPanel {
                 JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
         if (opt == JOptionPane.YES_OPTION) {
             try {
-                alertaDAO.eliminar((int) tableModel.getValueAt(row, 0));
+                alertaService.eliminar((int) tableModel.getValueAt(row, 0));
                 mainFrame.actualizarBadgeAlertas();
                 refresh();
             } catch (Exception ex) {
@@ -208,7 +208,7 @@ public class AlertasPanel extends JPanel {
                 "Confirmar eliminacion", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
         if (opt == JOptionPane.YES_OPTION) {
             try {
-                alertaDAO.eliminarTodas();
+                alertaService.eliminarTodas();
                 mainFrame.actualizarBadgeAlertas();
                 refresh();
             } catch (Exception ex) {
@@ -260,7 +260,7 @@ public class AlertasPanel extends JPanel {
         SwingWorker<List<Alerta>, Void> w = new SwingWorker<>() {
             @Override
             protected List<Alerta> doInBackground() throws Exception {
-                return alertaDAO.listarHistorial();
+                return alertaService.listarHistorial();
             }
 
             @Override
@@ -304,7 +304,7 @@ public class AlertasPanel extends JPanel {
         currentWorker = new SwingWorker<List<Alerta>, Void>() {
             @Override
             protected List<Alerta> doInBackground() throws Exception {
-                return alertaDAO.listarActivas();
+                return alertaService.listarActivas();
             }
 
             @Override

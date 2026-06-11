@@ -11,6 +11,11 @@ public class Usuario {
     private LocalDateTime creadoEn, ultimaSesion;
 
     public Usuario() {}
+    public Usuario(String nombre, String apellido, String email, String username, int rolId) {
+        this.nombre = nombre; this.apellido = apellido;
+        this.email = email; this.username = username;
+        this.rolId = rolId;
+    }
     public Usuario(int id, String nombre, String apellido, String email,
                    String username, String rol, int rolId, boolean activo) {
         this.id=id; this.nombre=nombre; this.apellido=apellido;

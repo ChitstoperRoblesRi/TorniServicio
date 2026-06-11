@@ -1,7 +1,6 @@
 package com.tornillos.ui;
 
 import com.tornillos.config.AppTheme;
-import com.tornillos.dao.AlertaDAO;
 import com.tornillos.model.Usuario;
 import com.tornillos.service.AlertaService;
 import com.tornillos.service.SessionManager;
@@ -21,7 +20,6 @@ public class MainFrame extends JFrame {
     private JButton btnAlertasNav;
     private JPanel navPanel;
 
-    private final AlertaDAO alertaDAO = new AlertaDAO();
     private final AlertaService alertaService = new AlertaService();
     private ScheduledExecutorService scheduler;
 
@@ -379,7 +377,7 @@ public class MainFrame extends JFrame {
 
     public void actualizarBadgeAlertas() {
         try {
-            int count = alertaDAO.contarActivas();
+            int count = alertaService.contarActivas();
             if (btnAlertasNav != null) {
                 String t = count > 0 ? "    Alertas  [" + count + "]" : "    Alertas";
                 btnAlertasNav.setText(t);

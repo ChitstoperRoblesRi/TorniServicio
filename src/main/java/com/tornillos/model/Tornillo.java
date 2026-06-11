@@ -16,6 +16,28 @@ public class Tornillo {
     public Tornillo() {
     }
 
+    public Tornillo(String codigo, String nombre, String descripcion, String material,
+                    String cabezaTipo, String unidadMedida, String ubicacion,
+                    BigDecimal diametroMm, BigDecimal longitudMm, BigDecimal pasoRosca,
+                    BigDecimal precioCosto, BigDecimal precioVenta,
+                    int stockActual, int stockMinimo, int stockMaximo) {
+        this.codigo = codigo;
+        this.nombre = nombre;
+        this.descripcion = descripcion;
+        this.material = material;
+        this.cabezaTipo = cabezaTipo;
+        this.unidadMedida = unidadMedida;
+        this.ubicacion = ubicacion;
+        this.diametroMm = diametroMm;
+        this.longitudMm = longitudMm;
+        this.pasoRosca = pasoRosca;
+        this.precioCosto = precioCosto;
+        this.precioVenta = precioVenta;
+        this.stockActual = stockActual;
+        this.stockMinimo = stockMinimo;
+        this.stockMaximo = stockMaximo;
+    }
+
     public String getEstadoStock() {
         if (stockActual == 0)
             return "SIN_STOCK";

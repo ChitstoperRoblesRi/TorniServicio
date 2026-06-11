@@ -11,6 +11,8 @@ public class MovimientoInventario {
     private int stockResultante;
     private String usuarioNombre;
 
+    public MovimientoInventario() {}
+
     public LocalDateTime getFecha() { return fecha; }
     public void setFecha(LocalDateTime f) { fecha = f; }
     public String getTornilloNombre() { return tornilloNombre; }

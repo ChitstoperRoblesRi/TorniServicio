@@ -1,10 +1,9 @@
 package com.tornillos.ui.panels;
 
 import com.tornillos.config.AppTheme;
-import com.tornillos.dao.TornilloDAO;
 import com.tornillos.model.Tornillo;
-import com.tornillos.service.AlertaService;
 import com.tornillos.service.SessionManager;
+import com.tornillos.service.TornilloService;
 import com.tornillos.ui.MainFrame;
 import com.tornillos.ui.dialogs.TornilloDialog;
 
@@ -24,8 +23,7 @@ public class InventarioPanel extends JPanel {
     private SwingWorker<?, ?> currentWorker;
 
     private final MainFrame mainFrame;
-    private final TornilloDAO tornilloDAO = new TornilloDAO();
-    private final AlertaService alertaService = new AlertaService();
+    private final TornilloService tornilloService = new TornilloService();
 
     public InventarioPanel(MainFrame frame) {
         this.mainFrame = frame;
@@ -272,7 +270,7 @@ public class InventarioPanel extends JPanel {
         if (opt != JOptionPane.YES_OPTION)
             return;
         try {
-            tornilloDAO.darDeBaja(id);
+            tornilloService.darDeBaja(id);
             refresh();
             JOptionPane.showMessageDialog(this,
                     "'" + nombre + "' dado de baja correctamente.", "Listo", JOptionPane.INFORMATION_MESSAGE);
@@ -294,7 +292,7 @@ public class InventarioPanel extends JPanel {
         if (opt != JOptionPane.YES_OPTION)
             return;
         try {
-            tornilloDAO.eliminar(id);
+            tornilloService.eliminar(id);
             refresh();
         } catch (Exception ex) {
             JOptionPane.showMessageDialog(this, "Error: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
@@ -307,14 +305,12 @@ public class InventarioPanel extends JPanel {
         dlg.setVisible(true);
         if (dlg.isGuardado()) {
             refresh();
-            alertaService.verificarAlertas();
-            mainFrame.actualizarBadgeAlertas();
         }
     }
 
     private void abrirDialogoPorId(int id) {
         try {
-            Tornillo t = tornilloDAO.obtenerPorId(id);
+            Tornillo t = tornilloService.obtenerPorId(id);
             abrirDialogo(t);
         } catch (Exception e) {
             JOptionPane.showMessageDialog(this, "Error: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
@@ -334,7 +330,7 @@ public class InventarioPanel extends JPanel {
         currentWorker = new SwingWorker<List<Tornillo>, Void>() {
             @Override
             protected List<Tornillo> doInBackground() throws Exception {
-                return tornilloDAO.listarConFiltro(ft, fe);
+                return tornilloService.listarConFiltro(ft, fe);
             }
 
             @Override
@@ -380,7 +376,7 @@ public class InventarioPanel extends JPanel {
         currentWorker = new SwingWorker<List<Tornillo>, Void>() {
             @Override
             protected List<Tornillo> doInBackground() throws Exception {
-                return tornilloDAO.listarTodos();
+                return tornilloService.listarTodos();
             }
 
             @Override

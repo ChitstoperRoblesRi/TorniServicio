@@ -1,8 +1,8 @@
 package com.tornillos.ui.panels;
 
 import com.tornillos.config.AppTheme;
-import com.tornillos.dao.*;
-import com.tornillos.model.*;
+import com.tornillos.model.MovimientoInventario;
+import com.tornillos.service.ReportesService;
 
 import javax.swing.*;
 import javax.swing.table.*;
@@ -22,7 +22,7 @@ public class ReportesPanel extends JPanel {
     private JLabel lblResumen;
     private SwingWorker<?, ?> currentWorker;
 
-    private final MovimientoInventarioDAO movimientoDAO = new MovimientoInventarioDAO();
+    private final ReportesService reportesService = new ReportesService();
 
     private static final String[] TIPOS_MOVIMIENTO = {
             "Todos los movimientos", "Creaci\u00f3n", "Entrada", "Salida"
@@ -165,7 +165,7 @@ public class ReportesPanel extends JPanel {
     }
 
     private void generarMovimientos(String tipo, String desde, String hasta) throws Exception {
-        List<MovimientoInventario> lista = movimientoDAO.listar(tipo, desde, hasta);
+        List<MovimientoInventario> lista = reportesService.listarMovimientos(tipo, desde, hasta);
         SwingUtilities.invokeLater(() -> {
             tableModel.setColumnIdentifiers(new String[] {
                     "Fecha/Hora", "Tornillo", "Codigo", "Tipo", "Cantidad", "Stock resultante", "Usuario" });

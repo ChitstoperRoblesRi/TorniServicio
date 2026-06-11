@@ -1,9 +1,9 @@
 package com.tornillos.ui;
 
 import com.tornillos.config.AppTheme;
-import com.tornillos.dao.UsuarioDAO;
 import com.tornillos.model.Usuario;
 import com.tornillos.service.SessionManager;
+import com.tornillos.service.UsuarioService;
 
 import javax.swing.*;
 import java.awt.*;
@@ -194,7 +194,7 @@ public class LoginFrame extends JFrame {
         SwingWorker<Usuario, Void> w = new SwingWorker<Usuario, Void>() {
             @Override
             protected Usuario doInBackground() throws Exception {
-                return new UsuarioDAO().autenticar(user, pass);
+                return new UsuarioService().autenticar(user, pass);
             }
 
             @Override

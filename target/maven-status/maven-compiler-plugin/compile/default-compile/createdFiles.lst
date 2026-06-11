@@ -20,6 +20,7 @@ com\tornillos\config\AppTheme$12.class
 com\tornillos\ui\panels\ReportesPanel.class
 com\tornillos\ui\LoginFrame.class
 com\tornillos\App.class
+com\tornillos\service\ConfiguracionService.class
 com\tornillos\dao\UsuarioDAO.class
 com\tornillos\config\AppTheme$9.class
 com\tornillos\ui\panels\DashboardPanel$3.class
@@ -38,11 +39,13 @@ com\tornillos\ui\panels\ReportesPanel$3.class
 com\tornillos\ui\panels\UsuariosPanel$3.class
 com\tornillos\model\Tornillo.class
 com\tornillos\ui\dialogs\TornilloDialog.class
+com\tornillos\service\SalidaService.class
 com\tornillos\ui\panels\AlertasPanel$7.class
 com\tornillos\ui\panels\InventarioPanel$6.class
 com\tornillos\model\Usuario.class
 com\tornillos\ui\panels\UsuariosPanel$4.class
 com\tornillos\model\Salida.class
+com\tornillos\service\UsuarioService.class
 com\tornillos\config\AppTheme$8.class
 com\tornillos\ui\panels\EntradasPanel$7.class
 com\tornillos\service\AlertaService$1.class
@@ -50,9 +53,11 @@ com\tornillos\ui\MainFrame$4.class
 com\tornillos\ui\MainFrame.class
 com\tornillos\config\AppTheme$1.class
 com\tornillos\ui\panels\ConfigPanel$2.class
+com\tornillos\service\DashboardService.class
 com\tornillos\dao\AlertaDAO.class
 com\tornillos\ui\panels\ReportesPanel$4.class
 com\tornillos\ui\panels\SalidasPanel$5.class
+com\tornillos\service\TornilloService.class
 com\tornillos\config\AppTheme$11.class
 com\tornillos\ui\panels\UsuariosPanel$5.class
 com\tornillos\dao\TornilloDAO.class
@@ -82,6 +87,7 @@ com\tornillos\config\AppTheme$13.class
 com\tornillos\ui\panels\DashboardPanel$2.class
 com\tornillos\config\AppTheme$2$1.class
 com\tornillos\dao\EntradaDAO.class
+com\tornillos\service\EntradaService.class
 com\tornillos\ui\LoginFrame$1.class
 com\tornillos\ui\MainFrame$4$1.class
 com\tornillos\ui\panels\UsuariosPanel$6.class
@@ -102,4 +108,5 @@ com\tornillos\ui\LoginFrame$2.class
 com\tornillos\config\AppTheme.class
 com\tornillos\config\AppTheme$CorporateScrollBarUI.class
 com\tornillos\model\Alerta.class
+com\tornillos\service\ReportesService.class
 com\tornillos\ui\panels\InventarioPanel$3.class

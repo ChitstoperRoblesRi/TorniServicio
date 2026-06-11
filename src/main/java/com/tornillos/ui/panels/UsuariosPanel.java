@@ -1,9 +1,9 @@
 package com.tornillos.ui.panels;
 
 import com.tornillos.config.AppTheme;
-import com.tornillos.dao.UsuarioDAO;
 import com.tornillos.model.Usuario;
 import com.tornillos.service.SessionManager;
+import com.tornillos.service.UsuarioService;
 
 import javax.swing.*;
 import javax.swing.table.*;
@@ -16,7 +16,7 @@ public class UsuariosPanel extends JPanel {
     private DefaultTableModel tableModel;
     private JTextField txtBuscar;
     private JLabel lblConteo;
-    private final UsuarioDAO usuarioDAO = new UsuarioDAO();
+    private final UsuarioService usuarioService = new UsuarioService();
 
     public UsuariosPanel() {
         setBackground(AppTheme.BG_SURFACE);
@@ -197,7 +197,7 @@ public class UsuariosPanel extends JPanel {
         SwingWorker<List<Usuario>, Void> w = new SwingWorker<>() {
             @Override
             protected List<Usuario> doInBackground() throws Exception {
-                return usuarioDAO.buscar(t);
+                return usuarioService.buscar(t);
             }
 
             @Override
@@ -219,9 +219,9 @@ public class UsuariosPanel extends JPanel {
         if (opt == JOptionPane.YES_OPTION) {
             try {
                 if (habilitar)
-                    usuarioDAO.habilitar(id);
+                    usuarioService.habilitar(id);
                 else
-                    usuarioDAO.inhabilitar(id);
+                    usuarioService.inhabilitar(id);
                 refresh();
             } catch (Exception ex) {
                 JOptionPane.showMessageDialog(this, "Error: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
@@ -274,22 +274,23 @@ public class UsuariosPanel extends JPanel {
         btnGuardar.addActionListener(e -> {
             try {
                 if (usuario == null) {
-                    Usuario u = new Usuario();
-                    u.setNombre(txtNombre.getText().trim());
-                    u.setApellido(txtApellido.getText().trim());
-                    u.setEmail(txtEmail.getText().trim());
-                    u.setUsername(txtUsername.getText().trim());
-                    u.setRolId(cmbRol.getSelectedIndex() == 1 ? 1 : 2);
+                    Usuario u = new Usuario(
+                        txtNombre.getText().trim(),
+                        txtApellido.getText().trim(),
+                        txtEmail.getText().trim(),
+                        txtUsername.getText().trim(),
+                        cmbRol.getSelectedIndex() == 1 ? 1 : 2
+                    );
                     String pass = new String(txtPass.getPassword());
                     if (pass.isBlank())
                         throw new IllegalArgumentException("La contraseña es obligatoria");
-                    usuarioDAO.crear(u, pass);
+                    usuarioService.crear(u, pass);
                 } else {
                     usuario.setNombre(txtNombre.getText().trim());
                     usuario.setApellido(txtApellido.getText().trim());
                     usuario.setEmail(txtEmail.getText().trim());
                     usuario.setRolId(cmbRol.getSelectedIndex() == 1 ? 1 : 2);
-                    usuarioDAO.actualizar(usuario);
+                    usuarioService.actualizar(usuario);
                 }
                 dlg.dispose();
                 refresh();
@@ -319,14 +320,17 @@ public class UsuariosPanel extends JPanel {
     }
 
     private void abrirDialogoPorFila(int row) {
-        Usuario u = new Usuario();
-        u.setId((int) tableModel.getValueAt(row, 0));
-        u.setUsername(tableModel.getValueAt(row, 1).toString());
-        u.setNombre(tableModel.getValueAt(row, 2).toString());
-        u.setApellido(tableModel.getValueAt(row, 3).toString());
-        u.setEmail(tableModel.getValueAt(row, 4).toString());
-        u.setRol(tableModel.getValueAt(row, 5).toString());
-        u.setRolId("GERENTE".equals(u.getRol()) ? 1 : 2);
+        String rol = tableModel.getValueAt(row, 5).toString();
+        Usuario u = new Usuario(
+            (int) tableModel.getValueAt(row, 0),
+            tableModel.getValueAt(row, 2).toString(),
+            tableModel.getValueAt(row, 3).toString(),
+            tableModel.getValueAt(row, 4).toString(),
+            tableModel.getValueAt(row, 1).toString(),
+            rol,
+            "GERENTE".equals(rol) ? 1 : 2,
+            "Activo".equals(tableModel.getValueAt(row, 6).toString())
+        );
         abrirDialogoUsuario(u);
     }
 
@@ -354,7 +358,7 @@ public class UsuariosPanel extends JPanel {
                 return;
             }
             try {
-                usuarioDAO.cambiarPassword(userId, p1);
+                usuarioService.cambiarPassword(userId, p1);
                 JOptionPane.showMessageDialog(this, "Contrasena actualizada correctamente.");
             } catch (Exception ex) {
                 JOptionPane.showMessageDialog(this, "Error: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
@@ -379,7 +383,7 @@ public class UsuariosPanel extends JPanel {
         SwingWorker<List<Usuario>, Void> w = new SwingWorker<>() {
             @Override
             protected List<Usuario> doInBackground() throws Exception {
-                return usuarioDAO.listarTodos();
+                return usuarioService.listarTodos();
             }
 
             @Override

@@ -1,9 +1,8 @@
 package com.tornillos.ui.panels;
 
 import com.tornillos.config.AppTheme;
-import com.tornillos.dao.*;
 import com.tornillos.model.*;
-import com.tornillos.service.AlertaService;
+import com.tornillos.service.SalidaService;
 import com.tornillos.service.SessionManager;
 import com.tornillos.ui.MainFrame;
 import com.tornillos.util.FolioGenerator;
@@ -23,9 +22,7 @@ public class SalidasPanel extends JPanel {
     private JLabel lblConteo;
     private SwingWorker<?, ?> currentWorker;
 
-    private final SalidaDAO salidaDAO = new SalidaDAO();
-    private final TornilloDAO tornilloDAO = new TornilloDAO();
-    private final AlertaService alertaService = new AlertaService();
+    private final SalidaService salidaService = new SalidaService();
 
     private final String[] MOTIVOS = { "Venta", "Uso Interno", "Muestra", "Devolucion", "Merma", "Otro" };
 
@@ -192,7 +189,8 @@ public class SalidasPanel extends JPanel {
                 "Confirmar eliminacion", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
         if (opt == JOptionPane.YES_OPTION) {
             try {
-                salidaDAO.eliminar((int) tableModel.getValueAt(row, 0));
+                salidaService.eliminar((int) tableModel.getValueAt(row, 0));
+                mainFrame.actualizarBadgeAlertas();
                 refresh();
                 JOptionPane.showMessageDialog(this, "Salida eliminada y stock revertido.");
             } catch (Exception ex) {
@@ -217,7 +215,7 @@ public class SalidasPanel extends JPanel {
 
         List<Tornillo> tornillos;
         try {
-            tornillos = tornilloDAO.listarTodos();
+            tornillos = salidaService.listarTornillosActivos();
         } catch (Exception e) {
             JOptionPane.showMessageDialog(this, "Error: " + e.getMessage());
             return;
@@ -279,26 +277,18 @@ public class SalidasPanel extends JPanel {
                 if (cantidad <= 0)
                     throw new IllegalArgumentException("Cantidad debe ser mayor a 0");
 
-                Salida s = new Salida();
-                s.setFolio(folio);
-                s.setTornilloId(t.getId());
-                s.setUsuarioId(SessionManager.getInstance().getUsuarioActual().getId());
-                s.setCantidad(cantidad);
-                s.setPrecioUnitario(precio);
-                s.setTotal(precio.multiply(BigDecimal.valueOf(cantidad)));
-                s.setMotivo(cmbMotivo.getSelectedItem().toString());
-                s.setCliente(txtCliente.getText().trim());
-                s.setObservaciones(txtObs.getText().trim());
+                Salida s = new Salida(
+                    folio, t.getId(),
+                    SessionManager.getInstance().getUsuarioActual().getId(),
+                    cantidad, precio, precio.multiply(BigDecimal.valueOf(cantidad)),
+                    cmbMotivo.getSelectedItem().toString(),
+                    txtCliente.getText().trim(),
+                    txtObs.getText().trim()
+                );
 
-                salidaDAO.registrar(s);
+                salidaService.registrar(s);
                 dlg.dispose();
-
-                // El sistema dispara alertas automaticamente (caso de uso: actor Sistema)
-                new Thread(() -> {
-                    alertaService.verificarAlertas();
-                    SwingUtilities.invokeLater(() -> mainFrame.actualizarBadgeAlertas());
-                }).start();
-
+                mainFrame.actualizarBadgeAlertas();
                 refresh();
                 JOptionPane.showMessageDialog(this,
                         "Salida registrada. Folio: " + folio, "Exito", JOptionPane.INFORMATION_MESSAGE);
@@ -353,7 +343,7 @@ public class SalidasPanel extends JPanel {
                 String termino = txtBuscar.getText().trim();
                 String desde = txtDesde.getText().trim().isEmpty() ? null : txtDesde.getText().trim();
                 String hasta = txtHasta.getText().trim().isEmpty() ? null : txtHasta.getText().trim();
-                return salidaDAO.buscar(termino, desde, hasta);
+                return salidaService.buscar(termino, desde, hasta);
             }
 
             @Override

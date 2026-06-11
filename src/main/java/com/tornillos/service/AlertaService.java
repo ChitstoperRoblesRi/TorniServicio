@@ -95,6 +95,31 @@ public class AlertaService {
         }
     }
 
+    // ── Métodos de consulta (delegación a DAO) ────────────────
+    public int contarActivas() throws SQLException {
+        return alertaDAO.contarActivas();
+    }
+
+    public List<Alerta> listarActivas() throws SQLException {
+        return alertaDAO.listarActivas();
+    }
+
+    public List<Alerta> listarHistorial() throws SQLException {
+        return alertaDAO.listarHistorial();
+    }
+
+    public List<Alerta> buscar(String termino) throws SQLException {
+        return alertaDAO.buscar(termino);
+    }
+
+    public void eliminar(int id) throws SQLException {
+        alertaDAO.eliminar(id);
+    }
+
+    public void eliminarTodas() throws SQLException {
+        alertaDAO.eliminarTodas();
+    }
+
     // ── Envío de email ────────────────────────────────────────
     private void enviarEmail(Alerta alerta, Map<String, String> conf) {
         try {

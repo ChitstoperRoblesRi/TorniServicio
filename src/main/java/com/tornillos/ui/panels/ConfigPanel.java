@@ -1,8 +1,8 @@
 package com.tornillos.ui.panels;
 
 import com.tornillos.config.AppTheme;
-import com.tornillos.dao.ConfiguracionDAO;
 import com.tornillos.service.AlertaService;
+import com.tornillos.service.ConfiguracionService;
 import com.tornillos.service.SessionManager;
 
 import javax.swing.*;
@@ -11,7 +11,7 @@ import java.util.Map;
 
 public class ConfigPanel extends JPanel {
 
-    private final ConfiguracionDAO confDAO = new ConfiguracionDAO();
+    private final ConfiguracionService confService = new ConfiguracionService();
     private final AlertaService alertaService = new AlertaService();
     private JButton btnProbar;
     private JTextField txtEmpresa, txtRfc, txtEmail;
@@ -172,7 +172,7 @@ public class ConfigPanel extends JPanel {
 
     private void cargarConfig() {
         try {
-            Map<String, String> conf = confDAO.obtenerTodas();
+            Map<String, String> conf = confService.obtenerTodas();
             txtEmpresa.setText(conf.getOrDefault("empresa_nombre", ""));
             txtRfc.setText(conf.getOrDefault("empresa_rfc", ""));
             txtEmail.setText(conf.getOrDefault("empresa_email", ""));
@@ -235,15 +235,15 @@ public class ConfigPanel extends JPanel {
 
     private void guardar() {
         try {
-            confDAO.guardar("empresa_nombre", txtEmpresa.getText().trim());
-            confDAO.guardar("empresa_rfc", txtRfc.getText().trim());
-            confDAO.guardar("empresa_email", txtEmail.getText().trim());
-            confDAO.guardar("smtp_host", txtSmtpHost.getText().trim());
-            confDAO.guardar("smtp_port", txtSmtpPort.getText().trim());
-            confDAO.guardar("smtp_user", txtSmtpUser.getText().trim());
-            confDAO.guardar("smtp_password", new String(txtSmtpPass.getPassword()));
-            confDAO.guardar("alertas_email_destino", txtSmtpDest.getText().trim());
-            confDAO.guardar("alertas_email_activo", String.valueOf(chkEmailActivo.isSelected()));
+            confService.guardar("empresa_nombre", txtEmpresa.getText().trim());
+            confService.guardar("empresa_rfc", txtRfc.getText().trim());
+            confService.guardar("empresa_email", txtEmail.getText().trim());
+            confService.guardar("smtp_host", txtSmtpHost.getText().trim());
+            confService.guardar("smtp_port", txtSmtpPort.getText().trim());
+            confService.guardar("smtp_user", txtSmtpUser.getText().trim());
+            confService.guardar("smtp_password", new String(txtSmtpPass.getPassword()));
+            confService.guardar("alertas_email_destino", txtSmtpDest.getText().trim());
+            confService.guardar("alertas_email_activo", String.valueOf(chkEmailActivo.isSelected()));
             JOptionPane.showMessageDialog(this,
                     "Configuración guardada correctamente.",
                     "Guardado", JOptionPane.INFORMATION_MESSAGE);

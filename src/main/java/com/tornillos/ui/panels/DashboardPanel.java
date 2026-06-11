@@ -1,10 +1,7 @@
 package com.tornillos.ui.panels;
 
 import com.tornillos.config.AppTheme;
-import com.tornillos.dao.AlertaDAO;
-import com.tornillos.dao.EntradaDAO;
-import com.tornillos.dao.SalidaDAO;
-import com.tornillos.dao.TornilloDAO;
+import com.tornillos.service.DashboardService;
 import com.tornillos.service.SessionManager;
 import com.tornillos.ui.MainFrame;
 
@@ -19,10 +16,7 @@ public class DashboardPanel extends JPanel {
     private JLabel lblTotal, lblStockBajo, lblEntradas, lblSalidas, lblAlertas;
     private JLabel lblLastUpdate;
 
-    private final TornilloDAO tornilloDAO = new TornilloDAO();
-    private final EntradaDAO entradaDAO = new EntradaDAO();
-    private final SalidaDAO salidaDAO = new SalidaDAO();
-    private final AlertaDAO alertaDAO = new AlertaDAO();
+    private final DashboardService dashboardService = new DashboardService();
 
     private javax.swing.Timer autoRefreshTimer;
 
@@ -273,13 +267,7 @@ public class DashboardPanel extends JPanel {
         new SwingWorker<int[], Void>() {
             @Override
             protected int[] doInBackground() throws Exception {
-                return new int[] {
-                        tornilloDAO.contarTotal(),
-                        tornilloDAO.contarStockBajo(),
-                        entradaDAO.contarHoy(),
-                        salidaDAO.contarHoy(),
-                        alertaDAO.contarActivas()
-                };
+                return dashboardService.obtenerResumen();
             }
 
             @Override

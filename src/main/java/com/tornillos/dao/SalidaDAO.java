@@ -11,19 +11,6 @@ public class SalidaDAO {
 
     public void registrar(Salida s) throws SQLException {
         Connection conn = DatabaseConfig.getConnection();
-        // Verificar stock suficiente
-        int stockActual;
-        try (PreparedStatement ps = conn.prepareStatement(
-                "SELECT stock_actual FROM tornillos WHERE id=?")) {
-            ps.setInt(1, s.getTornilloId());
-            try (ResultSet rs = ps.executeQuery()) {
-                if (!rs.next()) throw new SQLException("Tornillo no encontrado");
-                stockActual = rs.getInt("stock_actual");
-            }
-        }
-        if (stockActual < s.getCantidad())
-            throw new SQLException("Stock insuficiente. Disponible: " + stockActual + " | Solicitado: " + s.getCantidad());
-
         conn.setAutoCommit(false);
         try {
             String sql = "INSERT INTO salidas (folio, tornillo_id, usuario_id, cantidad, " +

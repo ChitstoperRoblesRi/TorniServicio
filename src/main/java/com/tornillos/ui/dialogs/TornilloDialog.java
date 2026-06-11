@@ -1,8 +1,8 @@
 package com.tornillos.ui.dialogs;
 
 import com.tornillos.config.AppTheme;
-import com.tornillos.dao.*;
 import com.tornillos.model.*;
+import com.tornillos.service.TornilloService;
 
 import javax.swing.*;
 import java.awt.*;
@@ -17,7 +17,7 @@ public class TornilloDialog extends JDialog {
     private JTextField txtPrecioCosto, txtPrecioVenta;
     private JTextArea txtDescripcion;
 
-    private final TornilloDAO tornilloDAO = new TornilloDAO();
+    private final TornilloService tornilloService = new TornilloService();
 
     public TornilloDialog(JFrame parent, Tornillo tornillo) {
         super(parent, tornillo == null ? "Nuevo Tornillo" : "Editar Tornillo", true);
@@ -151,35 +151,55 @@ public class TornilloDialog extends JDialog {
             if (txtCodigo.getText().isBlank() || txtNombre.getText().isBlank())
                 throw new IllegalArgumentException("Código y Nombre son obligatorios");
 
-            Tornillo t = tornillo != null ? tornillo : new Tornillo();
-            t.setCodigo(txtCodigo.getText().trim());
-            t.setNombre(txtNombre.getText().trim());
-            t.setDescripcion(txtDescripcion.getText().trim());
-            t.setMaterial(txtMaterial.getText().trim());
-            t.setCabezaTipo(txtCabeza.getText().trim());
-            t.setUnidadMedida(txtUnidad.getText().trim().isEmpty() ? "PZA" : txtUnidad.getText().trim());
-            t.setUbicacion(txtUbicacion.getText().trim());
-            if (!txtDiametro.getText().isBlank())
-                t.setDiametroMm(new BigDecimal(txtDiametro.getText().trim()));
-            if (!txtLongitud.getText().isBlank())
-                t.setLongitudMm(new BigDecimal(txtLongitud.getText().trim()));
-            if (!txtPaso.getText().isBlank())
-                t.setPasoRosca(new BigDecimal(txtPaso.getText().trim()));
-            t.setPrecioCosto(
-                    new BigDecimal(txtPrecioCosto.getText().trim().isEmpty() ? "0" : txtPrecioCosto.getText().trim()));
-            t.setPrecioVenta(
-                    new BigDecimal(txtPrecioVenta.getText().trim().isEmpty() ? "0" : txtPrecioVenta.getText().trim()));
-            t.setStockMinimo(
-                    txtStockMin.getText().trim().isEmpty() ? 10 : Integer.parseInt(txtStockMin.getText().trim()));
-            t.setStockMaximo(
-                    txtStockMax.getText().trim().isEmpty() ? 1000 : Integer.parseInt(txtStockMax.getText().trim()));
-
             if (tornillo == null) {
-                t.setStockActual(Integer
-                        .parseInt(txtStockInicial.getText().trim().isEmpty() ? "0" : txtStockInicial.getText().trim()));
-                tornilloDAO.crear(t);
+                BigDecimal diametro = !txtDiametro.getText().isBlank()
+                        ? new BigDecimal(txtDiametro.getText().trim()) : null;
+                BigDecimal longitud = !txtLongitud.getText().isBlank()
+                        ? new BigDecimal(txtLongitud.getText().trim()) : null;
+                BigDecimal paso = !txtPaso.getText().isBlank()
+                        ? new BigDecimal(txtPaso.getText().trim()) : null;
+                BigDecimal costo = new BigDecimal(
+                        txtPrecioCosto.getText().trim().isEmpty() ? "0" : txtPrecioCosto.getText().trim());
+                BigDecimal venta = new BigDecimal(
+                        txtPrecioVenta.getText().trim().isEmpty() ? "0" : txtPrecioVenta.getText().trim());
+                int stock = Integer.parseInt(
+                        txtStockInicial.getText().trim().isEmpty() ? "0" : txtStockInicial.getText().trim());
+                int min = txtStockMin.getText().trim().isEmpty()
+                        ? 10 : Integer.parseInt(txtStockMin.getText().trim());
+                int max = txtStockMax.getText().trim().isEmpty()
+                        ? 1000 : Integer.parseInt(txtStockMax.getText().trim());
+
+                Tornillo t = new Tornillo(
+                        txtCodigo.getText().trim(), txtNombre.getText().trim(),
+                        txtDescripcion.getText().trim(), txtMaterial.getText().trim(),
+                        txtCabeza.getText().trim(),
+                        txtUnidad.getText().trim().isEmpty() ? "PZA" : txtUnidad.getText().trim(),
+                        txtUbicacion.getText().trim(),
+                        diametro, longitud, paso, costo, venta, stock, min, max);
+                tornilloService.crear(t);
             } else {
-                tornilloDAO.actualizar(t);
+                tornillo.setCodigo(txtCodigo.getText().trim());
+                tornillo.setNombre(txtNombre.getText().trim());
+                tornillo.setDescripcion(txtDescripcion.getText().trim());
+                tornillo.setMaterial(txtMaterial.getText().trim());
+                tornillo.setCabezaTipo(txtCabeza.getText().trim());
+                tornillo.setUnidadMedida(txtUnidad.getText().trim().isEmpty() ? "PZA" : txtUnidad.getText().trim());
+                tornillo.setUbicacion(txtUbicacion.getText().trim());
+                if (!txtDiametro.getText().isBlank())
+                    tornillo.setDiametroMm(new BigDecimal(txtDiametro.getText().trim()));
+                if (!txtLongitud.getText().isBlank())
+                    tornillo.setLongitudMm(new BigDecimal(txtLongitud.getText().trim()));
+                if (!txtPaso.getText().isBlank())
+                    tornillo.setPasoRosca(new BigDecimal(txtPaso.getText().trim()));
+                tornillo.setPrecioCosto(new BigDecimal(
+                        txtPrecioCosto.getText().trim().isEmpty() ? "0" : txtPrecioCosto.getText().trim()));
+                tornillo.setPrecioVenta(new BigDecimal(
+                        txtPrecioVenta.getText().trim().isEmpty() ? "0" : txtPrecioVenta.getText().trim()));
+                tornillo.setStockMinimo(
+                        txtStockMin.getText().trim().isEmpty() ? 10 : Integer.parseInt(txtStockMin.getText().trim()));
+                tornillo.setStockMaximo(
+                        txtStockMax.getText().trim().isEmpty() ? 1000 : Integer.parseInt(txtStockMax.getText().trim()));
+                tornilloService.actualizar(tornillo);
             }
             guardado = true;
             dispose();

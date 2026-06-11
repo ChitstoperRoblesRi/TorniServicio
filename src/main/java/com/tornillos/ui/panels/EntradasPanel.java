@@ -1,9 +1,8 @@
 package com.tornillos.ui.panels;
 
 import com.tornillos.config.AppTheme;
-import com.tornillos.dao.*;
 import com.tornillos.model.*;
-import com.tornillos.service.AlertaService;
+import com.tornillos.service.EntradaService;
 import com.tornillos.service.SessionManager;
 import com.tornillos.ui.MainFrame;
 import com.tornillos.util.FolioGenerator;
@@ -23,9 +22,7 @@ public class EntradasPanel extends JPanel {
     private JLabel lblConteo;
     private SwingWorker<?, ?> currentWorker;
 
-    private final EntradaDAO entradaDAO = new EntradaDAO();
-    private final TornilloDAO tornilloDAO = new TornilloDAO();
-    private final AlertaService alertaService = new AlertaService();
+    private final EntradaService entradaService = new EntradaService();
 
     public EntradasPanel(MainFrame frame) {
         this.mainFrame = frame;
@@ -189,8 +186,7 @@ public class EntradasPanel extends JPanel {
                 "Confirmar eliminacion", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
         if (opt == JOptionPane.YES_OPTION) {
             try {
-                entradaDAO.eliminar((int) tableModel.getValueAt(row, 0));
-                alertaService.verificarAlertas();
+                entradaService.eliminar((int) tableModel.getValueAt(row, 0));
                 mainFrame.actualizarBadgeAlertas();
                 refresh();
                 JOptionPane.showMessageDialog(this, "Entrada eliminada y stock revertido.");
@@ -216,7 +212,7 @@ public class EntradasPanel extends JPanel {
 
         List<Tornillo> tornillos;
         try {
-            tornillos = tornilloDAO.listarTodos();
+            tornillos = entradaService.listarTornillosActivos();
         } catch (Exception e) {
             JOptionPane.showMessageDialog(this, "Error cargando datos: " + e.getMessage());
             return;
@@ -262,22 +258,18 @@ public class EntradasPanel extends JPanel {
                 if (cantidad <= 0)
                     throw new IllegalArgumentException("Cantidad debe ser mayor a 0");
 
-                Entrada entrada = new Entrada();
-                entrada.setFolio(folio);
-                entrada.setTornilloId(t.getId());
-                entrada.setUsuarioId(SessionManager.getInstance().getUsuarioActual().getId());
-                entrada.setCantidad(cantidad);
-                entrada.setPrecioUnitario(precio);
-                entrada.setTotal(precio.multiply(BigDecimal.valueOf(cantidad)));
-                entrada.setNumeroFactura(txtFactura.getText().trim());
-                entrada.setObservaciones(txtObs.getText().trim());
+                Entrada entrada = new Entrada(
+                    folio, t.getId(),
+                    SessionManager.getInstance().getUsuarioActual().getId(),
+                    cantidad, precio, precio.multiply(BigDecimal.valueOf(cantidad)),
+                    txtFactura.getText().trim(),
+                    txtObs.getText().trim()
+                );
 
-                entradaDAO.registrar(entrada);
+                entradaService.registrar(entrada);
                 dlg.dispose();
-                refresh();
-
-                alertaService.verificarAlertas();
                 mainFrame.actualizarBadgeAlertas();
+                refresh();
 
                 JOptionPane.showMessageDialog(this,
                         "Entrada registrada. Folio: " + folio, "Exito", JOptionPane.INFORMATION_MESSAGE);
@@ -333,7 +325,7 @@ public class EntradasPanel extends JPanel {
                 String termino = txtBuscar.getText().trim();
                 String desde = txtDesde.getText().trim().isEmpty() ? null : txtDesde.getText().trim();
                 String hasta = txtHasta.getText().trim().isEmpty() ? null : txtHasta.getText().trim();
-                return entradaDAO.buscar(termino, desde, hasta);
+                return entradaService.buscar(termino, desde, hasta);
             }
 
             @Override
