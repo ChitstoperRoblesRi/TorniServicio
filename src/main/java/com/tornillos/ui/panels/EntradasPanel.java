@@ -260,6 +260,17 @@ public class EntradasPanel extends JPanel {
         JTextArea txtObs = AppTheme.styledTextArea();
         txtObs.setRows(2);
 
+        // ── LÓGICA DE AUTOMATIZACIÓN DEL PRECIO DE COSTO ──
+        cmbTornillo.addActionListener(e -> {
+            Tornillo seleccionado = (Tornillo) cmbTornillo.getSelectedItem();
+            if (seleccionado != null && seleccionado.getPrecioCosto() != null) {
+                txtPrecio.setText(seleccionado.getPrecioCosto().toString());
+            } else {
+                txtPrecio.setText("0.00");
+            }
+        });
+        // ──────────────────────────────────────────────────
+
         String folio = FolioGenerator.generarEntrada();
         JTextField txtFolio = AppTheme.styledField(folio);
         txtFolio.setText(folio);
@@ -326,7 +337,7 @@ public class EntradasPanel extends JPanel {
         gbc.gridx = 0;
         gbc.gridy = 6;
         gbc.gridwidth = 2;
-        gbc.weightx = 0.0; // agregar esta línea antes de form.add(btns, gbc)
+        gbc.weightx = 0.0; 
         form.add(btns, gbc);
         btnCancel.addActionListener(ev -> dlg.dispose());
         btns.add(btnCancel);

@@ -12,7 +12,6 @@ import javax.swing.*;
 import javax.swing.table.*;
 import java.awt.*;
 import java.awt.event.*;
-//import java.util.*;
 import java.util.List;
 
 public class InventarioPanel extends JPanel {
@@ -94,8 +93,9 @@ public class InventarioPanel extends JPanel {
             }
         });
 
+        // INTEGRADO: Añadido "Inactivos" como quinto estado disponible
         cmbEstado = AppTheme
-                .styledCombo(new String[] { "Todos los estados", "Normal", "Stock Bajo", "Crítico", "Sin Stock" });
+                .styledCombo(new String[] { "Todos los estados", "Normal", "Stock Bajo", "Crítico", "Sin Stock", "Inactivos" });
         cmbEstado.setPreferredSize(new Dimension(160, 34));
         cmbEstado.addActionListener(e -> buscarConFiltro());
 
@@ -113,8 +113,9 @@ public class InventarioPanel extends JPanel {
     }
 
     private JScrollPane buildTable() {
+        // AGREGADO: Columna oculta en índice 11 para trackear la propiedad "activo" nativa
         String[] cols = { "ID", "Código", "Nombre", "Material", "Diam.mm", "Long.mm", "Stock", "Mín.",
-                "P.Venta", "Estado", "Ubicación" };
+                "P.Venta", "Estado", "Ubicación", "Activo" };
         tableModel = new DefaultTableModel(cols, 0) {
             @Override
             public boolean isCellEditable(int r, int c) {
@@ -126,23 +127,31 @@ public class InventarioPanel extends JPanel {
             @Override
             public Component prepareRenderer(TableCellRenderer r, int row, int col) {
                 Component c = super.prepareRenderer(r, row, col);
+                boolean esActivo = (boolean) getValueAt(row, 11);
+
                 if (!isRowSelected(row)) {
-                    c.setBackground(row % 2 == 0 ? AppTheme.BG_CARD : AppTheme.BG_SURFACE);
-                    if (col == 9) {
-                        Object val = getValueAt(row, col);
-                        if (val != null) {
-                            String sv = val.toString();
-                            if ("SIN STOCK".equals(sv))
-                                c.setForeground(AppTheme.DANGER_TEXT);
-                            else if ("CRÍTICO".equals(sv))
-                                c.setForeground(AppTheme.WARNING_TEXT);
-                            else if ("BAJO".equals(sv))
-                                c.setForeground(AppTheme.WARNING_TEXT);
-                            else
-                                c.setForeground(AppTheme.SUCCESS_TEXT);
-                        }
+                    if (!esActivo) {
+                        // RENDERIZADO VISUAL PARA INACTIVOS: Toda la fila en gris apagado sutil
+                        c.setBackground(row % 2 == 0 ? AppTheme.BG_CARD : AppTheme.BG_SURFACE);
+                        c.setForeground(AppTheme.TEXT_MUTED);
                     } else {
-                        c.setForeground(AppTheme.TEXT_PRIMARY);
+                        c.setBackground(row % 2 == 0 ? AppTheme.BG_CARD : AppTheme.BG_SURFACE);
+                        if (col == 9) {
+                            Object val = getValueAt(row, col);
+                            if (val != null) {
+                                String sv = val.toString();
+                                if ("SIN STOCK".equals(sv))
+                                    c.setForeground(AppTheme.DANGER_TEXT);
+                                else if ("CRÍTICO".equals(sv))
+                                    c.setForeground(AppTheme.WARNING_TEXT);
+                                else if ("BAJO".equals(sv))
+                                    c.setForeground(AppTheme.WARNING_TEXT);
+                                else
+                                    c.setForeground(AppTheme.SUCCESS_TEXT);
+                            }
+                        } else {
+                            c.setForeground(AppTheme.TEXT_PRIMARY);
+                        }
                     }
                 } else {
                     c.setBackground(AppTheme.ACCENT);
@@ -155,8 +164,11 @@ public class InventarioPanel extends JPanel {
 
         table.getColumnModel().getColumn(0).setMinWidth(0);
         table.getColumnModel().getColumn(0).setMaxWidth(0);
+        // Ocultar columna técnica de control "Activo"
+        table.getColumnModel().getColumn(11).setMinWidth(0);
+        table.getColumnModel().getColumn(11).setMaxWidth(0);
 
-        int[] widths = { 0, 90, 200, 100, 65, 70, 55, 45, 90, 80, 110 };
+        int[] widths = { 0, 90, 200, 100, 65, 70, 55, 45, 90, 80, 110, 0 };
         for (int i = 1; i < widths.length && i < table.getColumnCount(); i++) {
             table.getColumnModel().getColumn(i).setPreferredWidth(widths[i]);
         }
@@ -189,7 +201,6 @@ public class InventarioPanel extends JPanel {
 
         JMenuItem verItem = AppTheme.darkMenuItem("Ver stock actual", null);
         verItem.addActionListener(e -> verStock());
-        popup.add(verItem);
 
         if (SessionManager.getInstance().isGerente()) {
             JMenuItem editItem = AppTheme.darkMenuItem("Editar tornillo", null);
@@ -198,19 +209,59 @@ public class InventarioPanel extends JPanel {
                 if (row >= 0)
                     abrirDialogoPorId((int) tableModel.getValueAt(row, 0));
             });
-            popup.add(AppTheme.darkSeparator());
-            popup.add(editItem);
 
+            // ELEMENTOS DINÁMICOS DECLARADOS UNA SOLA VEZ
             JMenuItem bajaItem = AppTheme.darkMenuItem("Dar de baja tornillo", null);
             bajaItem.setForeground(AppTheme.WARNING_TEXT);
-            bajaItem.addActionListener(e -> darDeBaja());
-            popup.add(bajaItem);
+            bajaItem.addActionListener(ev -> darDeBaja());
 
-            popup.add(AppTheme.darkSeparator());
+            JMenuItem altaItem = AppTheme.darkMenuItem("Reactivar tornillo", null);
+            altaItem.setForeground(AppTheme.SUCCESS_TEXT);
+            altaItem.addActionListener(ev -> reactivarTornillo());
+
             JMenuItem eliminarItem = AppTheme.darkMenuItem("Eliminar permanentemente", null);
             eliminarItem.setForeground(AppTheme.DANGER_TEXT);
-            eliminarItem.addActionListener(e -> eliminarSeleccionado());
-            popup.add(eliminarItem);
+            eliminarItem.addActionListener(ev -> eliminarSeleccionado());
+
+            // SOLUCIÓN: Escuchador nativo del PopupMenu
+            popup.addPopupMenuListener(new javax.swing.event.PopupMenuListener() {
+                @Override
+                public void popupMenuWillBecomeVisible(javax.swing.event.PopupMenuEvent e) {
+                    // 1. Limpiar el menú completamente antes de mostrarlo
+                    popup.removeAll();
+                    
+                    // 2. Obtener la fila seleccionada de forma segura
+                    int row = table.getSelectedRow();
+                    if (row < 0) return; // Si por alguna razón no hay selección, no muestra nada
+
+                    // 3. Añadir los elementos base estáticos
+                    popup.add(verItem);
+                    popup.add(AppTheme.darkSeparator());
+                    popup.add(editItem);
+                    popup.add(AppTheme.darkSeparator());
+
+                    // 4. Evaluar el estado booleano de la columna oculta (índice 11)
+                    boolean esActivo = (boolean) tableModel.getValueAt(row, 11);
+                    if (esActivo) {
+                        popup.add(bajaItem);
+                    } else {
+                        popup.add(altaItem);
+                    }
+
+                    // 5. Añadir la opción de eliminación permanente al final
+                    popup.add(AppTheme.darkSeparator());
+                    popup.add(eliminarItem);
+                    
+                    // 6. Forzar a Swing a recalcular el tamaño del menú flotante
+                    popup.pack();
+                }
+
+                @Override public void popupMenuWillBecomeInvisible(javax.swing.event.PopupMenuEvent e) {}
+                @Override public void popupMenuCanceled(javax.swing.event.PopupMenuEvent e) {}
+            });
+        } else {
+            // Si no es Gerente, el menú contextual solo lleva la opción de "Ver stock"
+            popup.add(verItem);
         }
 
         table.setComponentPopupMenu(popup);
@@ -238,7 +289,7 @@ public class InventarioPanel extends JPanel {
         panel.add(AppTheme.label("Stock actual:"));
         JLabel lStock = new JLabel(String.valueOf(stock));
         lStock.setFont(new Font("Segoe UI", Font.BOLD, 22));
-        lStock.setForeground(stock == 0 ? AppTheme.DANGER : stock <= minimo ? AppTheme.WARNING : AppTheme.SUCCESS);
+        lStock.setForeground("INACTIVO".equals(estado) ? AppTheme.TEXT_MUTED : stock == 0 ? AppTheme.DANGER : stock <= minimo ? AppTheme.WARNING : AppTheme.SUCCESS);
         panel.add(lStock);
 
         panel.add(AppTheme.label("Stock mínimo:"));
@@ -251,9 +302,10 @@ public class InventarioPanel extends JPanel {
         JLabel lEstado = new JLabel(estado);
         lEstado.setFont(AppTheme.FONT_BOLD);
         lEstado.setForeground(
-                "SIN STOCK".equals(estado) ? AppTheme.DANGER
+                "INACTIVO".equals(estado) ? AppTheme.TEXT_MUTED
+                        : "SIN STOCK".equals(estado) ? AppTheme.DANGER
                         : "CRÍTICO".equals(estado) ? AppTheme.WARNING
-                                : "BAJO".equals(estado) ? AppTheme.WARNING : AppTheme.SUCCESS);
+                        : "BAJO".equals(estado) ? AppTheme.WARNING : AppTheme.SUCCESS);
         panel.add(lEstado);
 
         JOptionPane.showMessageDialog(this, panel, "Consultar Stock", JOptionPane.PLAIN_MESSAGE);
@@ -267,16 +319,31 @@ public class InventarioPanel extends JPanel {
         String nombre = tableModel.getValueAt(row, 2).toString();
         int opt = JOptionPane.showConfirmDialog(this,
                 "Dar de baja a '" + nombre + "'?\n" +
-                        "El tornillo quedará inactivo pero su historial se conserva.\n" +
-                        "Puedes reactivarlo editando el registro.",
+                        "El tornillo quedará inactivo pero su historial se conserva.",
                 "Dar de baja", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
         if (opt != JOptionPane.YES_OPTION)
             return;
         try {
             tornilloDAO.darDeBaja(id);
-            refresh();
+            buscarConFiltro(); // Refresca respetando el estado actual de la barra de filtros
             JOptionPane.showMessageDialog(this,
-                    "'" + nombre + "' dado de baja correctamente.", "Listo", JOptionPane.INFORMATION_MESSAGE);
+                    "'" + nombre + "' ha sido desactivado.", "Listo", JOptionPane.INFORMATION_MESSAGE);
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this, "Error: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private void reactivarTornillo() {
+        int row = table.getSelectedRow();
+        if (row < 0)
+            return;
+        int id = (int) tableModel.getValueAt(row, 0);
+        String nombre = tableModel.getValueAt(row, 2).toString();
+        try {
+            tornilloDAO.reactivar(id);
+            buscarConFiltro();
+            JOptionPane.showMessageDialog(this,
+                    "'" + nombre + "' ha sido reactivado con éxito.", "Éxito", JOptionPane.INFORMATION_MESSAGE);
         } catch (Exception ex) {
             JOptionPane.showMessageDialog(this, "Error: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
         }
@@ -296,7 +363,7 @@ public class InventarioPanel extends JPanel {
             return;
         try {
             tornilloDAO.eliminar(id);
-            refresh();
+            buscarConFiltro();
         } catch (Exception ex) {
             JOptionPane.showMessageDialog(this, "Error: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
         }
@@ -307,7 +374,7 @@ public class InventarioPanel extends JPanel {
                 (JFrame) SwingUtilities.getWindowAncestor(this), tornillo);
         dlg.setVisible(true);
         if (dlg.isGuardado()) {
-            refresh();
+            buscarConFiltro();
             alertaService.verificarAlertas();
             mainFrame.actualizarBadgeAlertas();
         }
@@ -328,7 +395,7 @@ public class InventarioPanel extends JPanel {
 
     private void buscarConFiltro() {
         String termino = txtBuscar.getText().trim();
-        String[] estadoMap = { null, "NORMAL", "BAJO", "CRÍTICO", "SIN_STOCK" };
+        String[] estadoMap = { null, "NORMAL", "BAJO", "CRÍTICO", "SIN_STOCK", "INACTIVO" };
         String estado = estadoMap[Math.min(cmbEstado.getSelectedIndex(), estadoMap.length - 1)];
 
         final String ft = termino;
@@ -356,16 +423,20 @@ public class InventarioPanel extends JPanel {
     private void poblarTabla(List<Tornillo> lista) {
         tableModel.setRowCount(0);
         for (Tornillo t : lista) {
-            String est0 = t.getEstadoStock();
             String estado;
-            if ("SIN_STOCK".equals(est0))
-                estado = "SIN STOCK";
-            else if ("CRÍTICO".equals(est0))
-                estado = "CRÍTICO";
-            else if ("BAJO".equals(est0))
-                estado = "BAJO";
-            else
-                estado = "NORMAL";
+            if (!t.isActivo()) {
+                estado = "INACTIVO";
+            } else {
+                String est0 = t.getEstadoStock();
+                if ("SIN_STOCK".equals(est0))
+                    estado = "SIN STOCK";
+                else if ("CRÍTICO".equals(est0))
+                    estado = "CRÍTICO";
+                else if ("BAJO".equals(est0))
+                    estado = "BAJO";
+                else
+                    estado = "NORMAL";
+            }
 
             tableModel.addRow(new Object[] {
                     t.getId(), t.getCodigo(), t.getNombre(),
@@ -373,29 +444,15 @@ public class InventarioPanel extends JPanel {
                     t.getDiametroMm() != null ? t.getDiametroMm() : "",
                     t.getLongitudMm() != null ? t.getLongitudMm() : "",
                     t.getStockActual(), t.getStockMinimo(),
-                    t.getPrecioVenta(), estado, t.getUbicacion()
+                    t.getPrecioVenta(), estado, t.getUbicacion(),
+                    t.isActivo() // Inyecta la propiedad booleana directo a la columna oculta 11
             });
         }
         lblConteo.setText(lista.size() + " producto(s) encontrado(s)");
     }
 
     public void refresh() {
-        if (currentWorker != null && !currentWorker.isDone())
-            currentWorker.cancel(true);
-        currentWorker = new SwingWorker<List<Tornillo>, Void>() {
-            @Override
-            protected List<Tornillo> doInBackground() throws Exception {
-                return tornilloDAO.listarTodos();
-            }
-
-            @Override
-            protected void done() {
-                try {
-                    poblarTabla(get());
-                } catch (Exception e) {
-                }
-            }
-        };
-        currentWorker.execute();
+        // Redirecciona directamente al motor de filtros para asegurar sincronización de estados activos/inactivos
+        buscarConFiltro();
     }
 }

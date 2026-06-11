@@ -9,11 +9,11 @@ import java.util.List;
 
 public class TornilloDAO {
 
-    private static final String BASE_QUERY =
-        "SELECT t.* FROM tornillos t ";
+    private static final String BASE_QUERY = "SELECT t.* FROM tornillos t ";
 
     public List<Tornillo> listarTodos() throws SQLException {
         List<Tornillo> lista = new ArrayList<>();
+        // Por defecto para la carga inicial, solo muestra los activos
         String sql = BASE_QUERY + "WHERE t.activo=true ORDER BY t.nombre";
         try (Statement st = DatabaseConfig.getConnection().createStatement();
              ResultSet rs = st.executeQuery(sql)) {
@@ -39,15 +39,23 @@ public class TornilloDAO {
 
     public List<Tornillo> listarConFiltro(String termino, String estadoStock) throws SQLException {
         List<Tornillo> lista = new ArrayList<>();
-        StringBuilder sb = new StringBuilder(BASE_QUERY + "WHERE t.activo=true ");
+        StringBuilder sb = new StringBuilder(BASE_QUERY);
         List<Object> params = new ArrayList<>();
+
+        // Manejo dinámico del estado ACTIVO según el filtro de stock seleccionado
+        if ("INACTIVO".equals(estadoStock)) {
+            sb.append("WHERE t.activo=false ");
+        } else {
+            sb.append("WHERE t.activo=true ");
+        }
 
         if (termino != null && !termino.isBlank()) {
             sb.append("AND (LOWER(t.nombre) LIKE ? OR LOWER(t.codigo) LIKE ?) ");
             String like = "%" + termino.toLowerCase() + "%";
             params.add(like); params.add(like);
         }
-        if (estadoStock != null) {
+        
+        if (estadoStock != null && !"INACTIVO".equals(estadoStock)) {
             switch (estadoStock) {
                 case "BAJO": sb.append("AND t.stock_actual <= t.stock_minimo AND t.stock_actual > t.stock_minimo/2 "); break;
                 case "CRÍTICO": sb.append("AND t.stock_actual <= t.stock_minimo/2 AND t.stock_actual > 0 "); break;
@@ -116,7 +124,7 @@ public class TornilloDAO {
     public void actualizar(Tornillo t) throws SQLException {
         String sql = "UPDATE tornillos SET codigo=?, nombre=?, descripcion=?, " +
             "material=?, diametro_mm=?, longitud_mm=?, paso_rosca=?, cabeza_tipo=?, unidad_medida=?, " +
-            "precio_costo=?, precio_venta=?, stock_minimo=?, stock_maximo=?, ubicacion=? WHERE id=?";
+            "precio_costo=?, precio_venta=?, stock_minimo=?, stock_maximo=?, ubicacion=?, activo=? WHERE id=?";
         try (PreparedStatement ps = DatabaseConfig.getConnection().prepareStatement(sql)) {
             ps.setString(1, t.getCodigo()); ps.setString(2, t.getNombre()); ps.setString(3, t.getDescripcion());
             ps.setString(4, t.getMaterial());
@@ -126,7 +134,9 @@ public class TornilloDAO {
             ps.setString(8, t.getCabezaTipo()); ps.setString(9, t.getUnidadMedida());
             ps.setBigDecimal(10, t.getPrecioCosto()); ps.setBigDecimal(11, t.getPrecioVenta());
             ps.setInt(12, t.getStockMinimo()); ps.setInt(13, t.getStockMaximo());
-            ps.setString(14, t.getUbicacion()); ps.setInt(15, t.getId());
+            ps.setString(14, t.getUbicacion()); 
+            ps.setBoolean(15, t.isActivo()); // Guarda el estado actual de la entidad
+            ps.setInt(16, t.getId());
             ps.executeUpdate();
         }
     }
@@ -141,7 +151,7 @@ public class TornilloDAO {
 
     public void eliminar(int id) throws SQLException {
         try (PreparedStatement ps = DatabaseConfig.getConnection()
-                .prepareStatement("UPDATE tornillos SET activo=false WHERE id=?")) {
+                .prepareStatement("DELETE FROM tornillos WHERE id=?")) { // Elminación física real para el menú "Eliminar permanentemente"
             ps.setInt(1, id);
             ps.executeUpdate();
         }
@@ -196,4 +206,11 @@ public class TornilloDAO {
         }
     }
 
+    public void reactivar(int id) throws java.sql.SQLException {
+        try (java.sql.PreparedStatement ps = com.tornillos.config.DatabaseConfig.getConnection()
+                .prepareStatement("UPDATE tornillos SET activo=true WHERE id=?")) {
+            ps.setInt(1, id);
+            ps.executeUpdate();
+        }
+    }
 }
