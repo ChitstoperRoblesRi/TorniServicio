@@ -244,8 +244,13 @@ public class SalidasPanel extends JPanel {
         gbc.insets = new Insets(6, 6, 6, 6);
 
         List<Tornillo> tornillos;
-        try { tornillos = tornilloDAO.listarTodos(); }
-        catch (Exception e) { JOptionPane.showMessageDialog(this, "Error: " + e.getMessage()); return; }
+        try { 
+            // CORREGIDO: Ahora jala únicamente los tornillos con existencias disponibles en inventario
+            tornillos = tornilloDAO.listarConStockDisponible(); 
+        } catch (Exception e) { 
+            JOptionPane.showMessageDialog(this, "Error cargando existencias: " + e.getMessage()); 
+            return; 
+        }
 
         JComboBox<Tornillo> cmbTornillo = com.tornillos.util.SearchableComboBoxFactory.create(tornillos);
         
