@@ -38,12 +38,14 @@ CREATE TABLE IF NOT EXISTS categorias (
 );
 
 INSERT INTO categorias (nombre, descripcion) VALUES
-    ('Tornillo Métrico', 'Tornillos con rosca métrica estándar'),
-    ('Tornillo Autorroscante', 'Tornillos que forman su propia rosca'),
-    ('Tornillo de Madera', 'Tornillos para madera'),
-    ('Tornillo de Máquina', 'Tornillos para ensamblaje mecánico'),
-    ('Tornillo de Cabeza Hexagonal', 'Tornillos con cabeza hexagonal'),
-    ('Tornillo Phillips', 'Tornillos con ranura Phillips')
+    ('Métrico estándar', 'Tornillos con rosca métrica ISO para uso general'),
+    ('Autoperforante', 'Tornillos que perforan y roscan su propio orificio en lámina o metal delgado'),
+    ('Autorroscante', 'Tornillos que forman su propia rosca en materiales blandos sin necesidad de tuerca'),
+    ('Madera', 'Tornillos diseñados para fijación en madera maciza, aglomerado o MDF'),
+    ('Prisionero / sin cabeza', 'Tornillos sin cabeza usados para fijación de piezas en ejes o cavidades'),
+    ('Estructural / de alta resistencia', 'Tornillos de alta resistencia para uniones estructurales y cargas elevadas'),
+    ('Especial / industrial', 'Tornillos para aplicaciones industriales específicas o de uso poco común'),
+    ('Otro', 'Categoría general para tornillos que no encajan en las categorías anteriores')
 ON CONFLICT DO NOTHING;
 
 -- Proveedores
