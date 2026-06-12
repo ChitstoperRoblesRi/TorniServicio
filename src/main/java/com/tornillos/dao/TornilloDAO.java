@@ -13,7 +13,6 @@ public class TornilloDAO {
 
     public List<Tornillo> listarTodos() throws SQLException {
         List<Tornillo> lista = new ArrayList<>();
-        // Por defecto para la carga inicial, solo muestra los activos
         String sql = BASE_QUERY + "WHERE t.activo=true ORDER BY t.nombre";
         try (Statement st = DatabaseConfig.getConnection().createStatement();
              ResultSet rs = st.executeQuery(sql)) {
@@ -42,7 +41,6 @@ public class TornilloDAO {
         StringBuilder sb = new StringBuilder(BASE_QUERY);
         List<Object> params = new ArrayList<>();
 
-        // Manejo dinámico del estado ACTIVO según el filtro de stock seleccionado
         if ("INACTIVO".equals(estadoStock)) {
             sb.append("WHERE t.activo=false ");
         } else {
@@ -97,46 +95,69 @@ public class TornilloDAO {
     }
 
     public void crear(Tornillo t) throws SQLException {
-        String sql = "INSERT INTO tornillos (codigo, nombre, descripcion, " +
-            "material, diametro_mm, longitud_mm, paso_rosca, cabeza_tipo, unidad_medida, " +
+        String sql = "INSERT INTO tornillos (codigo, nombre, descripcion, categoria_id, material, sistema_medida, " +
+            "diametro_mm, longitud_mm, paso_rosca, cabeza_tipo, unidad_medida, " +
             "precio_costo, precio_venta, stock_actual, stock_minimo, stock_maximo, ubicacion, activo) " +
-            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,true)";
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, true)";
+            
         try (PreparedStatement ps = DatabaseConfig.getConnection().prepareStatement(sql)) {
             ps.setString(1, t.getCodigo());
             ps.setString(2, t.getNombre());
             ps.setString(3, t.getDescripcion());
-            ps.setString(4, t.getMaterial());
-            if (t.getDiametroMm() != null) ps.setBigDecimal(5, t.getDiametroMm()); else ps.setNull(5, Types.DECIMAL);
-            if (t.getLongitudMm() != null) ps.setBigDecimal(6, t.getLongitudMm()); else ps.setNull(6, Types.DECIMAL);
-            if (t.getPasoRosca() != null) ps.setBigDecimal(7, t.getPasoRosca()); else ps.setNull(7, Types.DECIMAL);
-            ps.setString(8, t.getCabezaTipo());
-            ps.setString(9, t.getUnidadMedida() != null ? t.getUnidadMedida() : "PZA");
-            ps.setBigDecimal(10, t.getPrecioCosto());
-            ps.setBigDecimal(11, t.getPrecioVenta());
-            ps.setInt(12, t.getStockActual());
-            ps.setInt(13, t.getStockMinimo());
-            ps.setInt(14, t.getStockMaximo());
-            ps.setString(15, t.getUbicacion());
+            
+            if (t.getCategoriaId() <= 0) ps.setNull(4, java.sql.Types.INTEGER);
+            else ps.setInt(4, t.getCategoriaId());
+            
+            ps.setString(5, t.getMaterial());
+            ps.setString(6, t.getSistemaMedida() != null ? t.getSistemaMedida() : "METRICO"); // Parámetro 6
+            
+            if (t.getDiametroMm() != null) ps.setBigDecimal(7, t.getDiametroMm()); else ps.setNull(7, Types.DECIMAL);
+            if (t.getLongitudMm() != null) ps.setBigDecimal(8, t.getLongitudMm()); else ps.setNull(8, Types.DECIMAL);
+            if (t.getPasoRosca() != null)  ps.setBigDecimal(9, t.getPasoRosca());  else ps.setNull(9, Types.DECIMAL);
+            
+            ps.setString(10, t.getCabezaTipo());
+            ps.setString(11, t.getUnidadMedida() != null ? t.getUnidadMedida() : "PZA");
+            ps.setBigDecimal(12, t.getPrecioCosto());
+            ps.setBigDecimal(13, t.getPrecioVenta());
+            ps.setInt(14, t.getStockActual());
+            ps.setInt(15, t.getStockMinimo());
+            ps.setInt(16, t.getStockMaximo());
+            ps.setString(17, t.getUbicacion());
+            
             ps.executeUpdate();
         }
     }
 
     public void actualizar(Tornillo t) throws SQLException {
-        String sql = "UPDATE tornillos SET codigo=?, nombre=?, descripcion=?, " +
-            "material=?, diametro_mm=?, longitud_mm=?, paso_rosca=?, cabeza_tipo=?, unidad_medida=?, " +
+        String sql = "UPDATE tornillos SET codigo=?, nombre=?, descripcion=?, categoria_id=?, material=?, sistema_medida=?, " +
+            "diametro_mm=?, longitud_mm=?, paso_rosca=?, cabeza_tipo=?, unidad_medida=?, " +
             "precio_costo=?, precio_venta=?, stock_minimo=?, stock_maximo=?, ubicacion=?, activo=? WHERE id=?";
+            
         try (PreparedStatement ps = DatabaseConfig.getConnection().prepareStatement(sql)) {
-            ps.setString(1, t.getCodigo()); ps.setString(2, t.getNombre()); ps.setString(3, t.getDescripcion());
-            ps.setString(4, t.getMaterial());
-            if (t.getDiametroMm() != null) ps.setBigDecimal(5, t.getDiametroMm()); else ps.setNull(5, Types.DECIMAL);
-            if (t.getLongitudMm() != null) ps.setBigDecimal(6, t.getLongitudMm()); else ps.setNull(6, Types.DECIMAL);
-            if (t.getPasoRosca() != null) ps.setBigDecimal(7, t.getPasoRosca()); else ps.setNull(7, Types.DECIMAL);
-            ps.setString(8, t.getCabezaTipo()); ps.setString(9, t.getUnidadMedida());
-            ps.setBigDecimal(10, t.getPrecioCosto()); ps.setBigDecimal(11, t.getPrecioVenta());
-            ps.setInt(12, t.getStockMinimo()); ps.setInt(13, t.getStockMaximo());
-            ps.setString(14, t.getUbicacion()); 
-            ps.setBoolean(15, t.isActivo()); // Guarda el estado actual de la entidad
-            ps.setInt(16, t.getId());
+            ps.setString(1, t.getCodigo()); 
+            ps.setString(2, t.getNombre()); 
+            ps.setString(3, t.getDescripcion());
+            
+            if (t.getCategoriaId() <= 0) ps.setNull(4, java.sql.Types.INTEGER);
+            else ps.setInt(4, t.getCategoriaId());
+            
+            ps.setString(5, t.getMaterial());
+            ps.setString(6, t.getSistemaMedida() != null ? t.getSistemaMedida() : "METRICO"); // Parámetro 6
+            
+            if (t.getDiametroMm() != null) ps.setBigDecimal(7, t.getDiametroMm()); else ps.setNull(7, Types.DECIMAL);
+            if (t.getLongitudMm() != null) ps.setBigDecimal(8, t.getLongitudMm()); else ps.setNull(8, Types.DECIMAL);
+            if (t.getPasoRosca() != null)  ps.setBigDecimal(9, t.getPasoRosca());  else ps.setNull(9, Types.DECIMAL);
+            
+            ps.setString(10, t.getCabezaTipo()); 
+            ps.setString(11, t.getUnidadMedida());
+            ps.setBigDecimal(12, t.getPrecioCosto()); 
+            ps.setBigDecimal(13, t.getPrecioVenta());
+            ps.setInt(14, t.getStockMinimo()); 
+            ps.setInt(15, t.getStockMaximo());
+            ps.setString(16, t.getUbicacion()); 
+            ps.setBoolean(17, t.isActivo()); 
+            ps.setInt(18, t.getId());
+            
             ps.executeUpdate();
         }
     }
@@ -151,7 +172,7 @@ public class TornilloDAO {
 
     public void eliminar(int id) throws SQLException {
         try (PreparedStatement ps = DatabaseConfig.getConnection()
-                .prepareStatement("DELETE FROM tornillos WHERE id=?")) { // Elminación física real para el menú "Eliminar permanentemente"
+                .prepareStatement("DELETE FROM tornillos WHERE id=?")) { 
             ps.setInt(1, id);
             ps.executeUpdate();
         }
@@ -172,13 +193,30 @@ public class TornilloDAO {
         }
     }
 
+    public boolean existeCodigo(String codigo, int idExcluir) throws SQLException {
+        String sql = "SELECT COUNT(*) FROM tornillos WHERE codigo = ? AND id != ?";
+        try (Connection conn = DatabaseConfig.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, codigo);
+            ps.setInt(2, idExcluir);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt(1) > 0;
+                }
+            }
+        }
+        return false;
+    }
+
     private Tornillo mapear(ResultSet rs) throws SQLException {
         Tornillo t = new Tornillo();
         t.setId(rs.getInt("id"));
         t.setCodigo(rs.getString("codigo"));
         t.setNombre(rs.getString("nombre"));
         t.setDescripcion(rs.getString("descripcion"));
+        t.setCategoriaId(rs.getInt("categoria_id"));
         t.setMaterial(rs.getString("material"));
+        t.setSistemaMedida(rs.getString("sistema_medida")); // <-- NUEVA LECTURA
         t.setDiametroMm(rs.getBigDecimal("diametro_mm"));
         t.setLongitudMm(rs.getBigDecimal("longitud_mm"));
         t.setPasoRosca(rs.getBigDecimal("paso_rosca"));

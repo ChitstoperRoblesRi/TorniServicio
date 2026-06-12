@@ -276,6 +276,33 @@ public class EntradasPanel extends JPanel {
         cmbTornillo.setBackground(AppTheme.BG_CARD_HOVER);
         cmbTornillo.setForeground(AppTheme.TEXT_PRIMARY);
 
+        // Sincronización estética para el combo de búsqueda predictiva (Conserva la escritura libre)
+        cmbTornillo.setUI(new javax.swing.plaf.basic.BasicComboBoxUI() {
+            @Override
+            protected JButton createArrowButton() {
+                JButton btn = new JButton("▼");
+                btn.setFont(new Font("Segoe UI", Font.PLAIN, 10));
+                btn.setForeground(AppTheme.BG_BASE);
+                btn.setBackground(AppTheme.BG_CARD_HOVER);
+                btn.setBorder(BorderFactory.createEmptyBorder(2, 6, 2, 6));
+                btn.setContentAreaFilled(true);
+                btn.setFocusable(false);
+                return btn;
+            }
+        });
+        cmbTornillo.setBorder(new javax.swing.border.Border() {
+            @Override
+            public void paintBorder(Component c, java.awt.Graphics g, int x, int y, int width, int height) {
+                java.awt.Graphics2D g2 = (java.awt.Graphics2D) g.create();
+                g2.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING, java.awt.RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(AppTheme.BORDER);
+                g2.drawRoundRect(x, y, width - 1, height - 1, 8, 8);
+                g2.dispose();
+            }
+            @Override public Insets getBorderInsets(Component c) { return new Insets(2, 2, 2, 2); }
+            @Override public boolean isBorderOpaque() { return false; }
+        });
+
         JTextField txtCantidad = AppTheme.styledField("0");
         JTextField txtPrecio = AppTheme.styledField("0.00");
         JTextField txtFactura = AppTheme.styledField("Numero de factura (opcional)");
@@ -359,7 +386,6 @@ public class EntradasPanel extends JPanel {
         gbc.gridwidth = 2;
         gbc.weightx = 0.0; 
         form.add(btns, gbc);
-        btnCancel.addActionListener(ev -> dlg.dispose());
         btns.add(btnCancel);
         btns.add(btnGuardar);
         dlg.add(new JScrollPane(form));

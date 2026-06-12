@@ -1,5 +1,36 @@
 package com.tornillos.ui.panels;
 
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Insets;
+import java.awt.Component;
+import java.awt.Dimension;
+import java.awt.FlowLayout;
+import java.awt.Font;
+import java.awt.GridLayout;
+import java.awt.event.KeyAdapter;
+import java.awt.event.KeyEvent;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+import java.util.List;
+
+import javax.swing.BorderFactory;
+import javax.swing.JButton;
+import javax.swing.JComboBox;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JMenuItem;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.JPopupMenu;
+import javax.swing.JScrollPane;
+import javax.swing.JTable;
+import javax.swing.JTextField;
+import javax.swing.SwingUtilities;
+import javax.swing.SwingWorker;
+import javax.swing.table.DefaultTableModel;
+import javax.swing.table.TableCellRenderer;
+
 import com.tornillos.config.AppTheme;
 import com.tornillos.dao.TornilloDAO;
 import com.tornillos.model.Tornillo;
@@ -7,12 +38,6 @@ import com.tornillos.service.AlertaService;
 import com.tornillos.service.SessionManager;
 import com.tornillos.ui.MainFrame;
 import com.tornillos.ui.dialogs.TornilloDialog;
-
-import javax.swing.*;
-import javax.swing.table.*;
-import java.awt.*;
-import java.awt.event.*;
-import java.util.List;
 
 public class InventarioPanel extends JPanel {
 
@@ -93,10 +118,88 @@ public class InventarioPanel extends JPanel {
             }
         });
 
-        cmbEstado = AppTheme
-                .styledCombo(new String[] { "Todos los estados", "Normal", "Stock Bajo", "Crítico", "Sin Stock", "Inactivos" });
+        // INTEGRADO: Añadido "Inactivos" como quinto estado disponible
+        cmbEstado = AppTheme.styledCombo(new String[] { "Todos los estados", "Normal", "Stock Bajo", "Crítico", "Sin Stock", "Inactivos" });
         cmbEstado.setPreferredSize(new Dimension(160, 34));
-        cmbEstado.addActionListener(e -> buscarConFiltro());
+
+        // ── SOLUCIÓN DE RAÍZ: Reemplazar la UI nativa de Windows por una limpia, agnóstica y oscura ──
+        cmbEstado.setUI(new javax.swing.plaf.basic.BasicComboBoxUI() {
+            @Override
+            protected JButton createArrowButton() {
+                JButton btn = new JButton("▼");
+                btn.setFont(new Font("Segoe UI", Font.PLAIN, 10));
+                btn.setForeground(AppTheme.BG_BASE);
+                btn.setBackground(AppTheme.BG_CARD_HOVER);
+                btn.setBorder(BorderFactory.createEmptyBorder(2, 6, 2, 6));
+                btn.setContentAreaFilled(true);
+                btn.setFocusable(false);
+                return btn;
+            }
+        });
+
+        // ── ENMARCADO Y REDONDEO PREMIUM CON EL COLOR OFICIAL DEL DESIGN SYSTEM ──
+        cmbEstado.setBorder(new javax.swing.border.Border() {
+            @Override
+            public void paintBorder(Component c, java.awt.Graphics g, int x, int y, int width, int height) {
+                java.awt.Graphics2D g2 = (java.awt.Graphics2D) g.create();
+                // Activamos el suavizado de bordes (Antialiasing) para evitar pixeles duros
+                g2.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING, java.awt.RenderingHints.VALUE_ANTIALIAS_ON);
+                
+                // ¡AQUÍ ESTÁ TU COLOR EXACTO! Usamos el mismo borde que styledField
+                g2.setColor(AppTheme.BORDER); 
+                
+                // Dibujamos el rectángulo redondeado (radio de 8px para suavizar las esquinas rectas)
+                g2.drawRoundRect(x, y, width - 1, height - 1, 8, 8);
+                g2.dispose();
+            }
+
+            @Override
+            public Insets getBorderInsets(Component c) {
+                // Margen interno sutil para proteger el texto del redondeo
+                return new Insets(2, 2, 2, 2);
+            }
+
+            @Override
+            public boolean isBorderOpaque() {
+                return false;
+            }
+        });
+
+        // ── PARCHE LOOK & FEEL PARA EL EDITOR TEXTUAL INTERNO ──
+        cmbEstado.setEditor(new javax.swing.plaf.basic.BasicComboBoxEditor() {
+            @Override
+            protected JTextField createEditorComponent() {
+                JTextField txt = new JTextField();
+                txt.setBackground(AppTheme.BG_CARD_HOVER); // Tu fondo oscuro premium
+                txt.setForeground(AppTheme.TEXT_PRIMARY);    // Tu texto claro
+                txt.setEditable(false);                     // Bloquea por completo la escritura libre
+                txt.setBorder(BorderFactory.createEmptyBorder(2, 6, 2, 6));
+                
+                // Abre el menú desplegable al hacer clic en cualquier parte de la caja de texto
+                txt.addMouseListener(new java.awt.event.MouseAdapter() {
+                    @Override
+                    public void mousePressed(java.awt.event.MouseEvent e) {
+                        if (cmbEstado.isEnabled()) {
+                            if (cmbEstado.isPopupVisible()) cmbEstado.hidePopup();
+                            else cmbEstado.showPopup();
+                        }
+                    }
+                });
+                return txt;
+            }
+        });
+        cmbEstado.setEditable(true);
+        
+        // Sincroniza el texto inicial del contenedor con el editor oscuro
+        Object inicial = cmbEstado.getSelectedItem();
+        cmbEstado.getEditor().setItem(inicial != null ? inicial.toString() : "");
+
+        // Listener corregido: actualiza el texto visual del editor y dispara el filtro
+        cmbEstado.addActionListener(e -> {
+            Object item = cmbEstado.getSelectedItem();
+            cmbEstado.getEditor().setItem(item != null ? item.toString() : "");
+            buscarConFiltro();
+        });
 
         JButton btnLimpiar = AppTheme.secondaryButton("Limpiar");
         btnLimpiar.addActionListener(e -> {
@@ -112,7 +215,8 @@ public class InventarioPanel extends JPanel {
     }
 
     private JScrollPane buildTable() {
-        String[] cols = { "ID", "Código", "Nombre", "Material", "Diam.mm", "Long.mm", "Stock", "Mín.",
+        // AGREGADO: Columna oculta en índice 11 para trackear la propiedad "activo" nativa
+        String[] cols = { "ID", "Código", "Nombre", "Material", "Diámetro", "Longitud", "Stock", "Mín.",
                 "P.Venta", "Estado", "Ubicación", "Activo" };
         tableModel = new DefaultTableModel(cols, 0) {
             @Override
@@ -401,7 +505,14 @@ public class InventarioPanel extends JPanel {
     private void buscarConFiltro() {
         String termino = txtBuscar.getText().trim();
         String[] estadoMap = { null, "NORMAL", "BAJO", "CRÍTICO", "SIN_STOCK", "INACTIVO" };
-        String estado = estadoMap[Math.min(cmbEstado.getSelectedIndex(), estadoMap.length - 1)];
+        
+        // BLINDAJE: Si el renderizado editable devuelve -1, lo forzamos a 0 ("Todos los estados")
+        int indexSeleccionado = cmbEstado.getSelectedIndex();
+        if (indexSeleccionado < 0) {
+            indexSeleccionado = 0;
+        }
+        
+        String estado = estadoMap[Math.min(indexSeleccionado, estadoMap.length - 1)];
 
         final String ft = termino;
         final String fe = estado;
@@ -446,8 +557,9 @@ public class InventarioPanel extends JPanel {
             tableModel.addRow(new Object[] {
                     t.getId(), t.getCodigo(), t.getNombre(),
                     t.getMaterial(),
-                    t.getDiametroMm() != null ? t.getDiametroMm() : "",
-                    t.getLongitudMm() != null ? t.getLongitudMm() : "",
+                    // Pasamos el valor y el sistema de medida por el formateador dinámico
+                    formatearMedida(t.getDiametroMm(), t.getSistemaMedida()),
+                    formatearMedida(t.getLongitudMm(), t.getSistemaMedida()),
                     t.getStockActual(), t.getStockMinimo(),
                     t.getPrecioVenta(), estado, t.getUbicacion(),
                     t.isActivo()
@@ -458,5 +570,42 @@ public class InventarioPanel extends JPanel {
 
     public void refresh() {
         buscarConFiltro();
+    }
+
+    /**
+     * Convierte un BigDecimal numérico a una representación visual amigable 
+    * dependiendo de si el sistema de medida es MÉTRICO o IMPERIAL.
+    */
+    private String formatearMedida(java.math.BigDecimal valor, String sistemaMedida) {
+        if (valor == null) return "";
+        
+        if ("IMPERIAL".equalsIgnoreCase(sistemaMedida)) {
+            double val = valor.doubleValue();
+            int entero = (int) val;
+            double decimal = val - entero;
+
+            String fraccion = "";
+            // Mapeo preciso de los decimales flotantes a fracciones comunes en ferreterías
+            if (Math.abs(decimal - 0.0625) < 0.001) fraccion = "1/16";
+            else if (Math.abs(decimal - 0.125) < 0.001)  fraccion = "1/8";
+            else if (Math.abs(decimal - 0.1875) < 0.001) fraccion = "3/16";
+            else if (Math.abs(decimal - 0.25) < 0.001)   fraccion = "1/4";
+            else if (Math.abs(decimal - 0.3125) < 0.001) fraccion = "5/16";
+            else if (Math.abs(decimal - 0.375) < 0.001)  fraccion = "3/8";
+            else if (Math.abs(decimal - 0.5) < 0.001)    fraccion = "1/2";
+            else if (Math.abs(decimal - 0.625) < 0.001)  fraccion = "5/8";
+            else if (Math.abs(decimal - 0.75) < 0.001)   fraccion = "3/4";
+            else if (Math.abs(decimal - 0.875) < 0.001)  fraccion = "7/8";
+
+            // Construir la cadena final (Fracción mixta o simple)
+            if (entero > 0) {
+                return fraccion.isEmpty() ? valor.toPlainString() + "\"" : entero + " " + fraccion + "\"";
+            } else {
+                return fraccion.isEmpty() ? valor.toPlainString() + "\"" : fraccion + "\"";
+            }
+        }
+        
+        // Si es MÉTRICO, simplemente adjuntamos la unidad "mm" de forma limpia
+        return valor.stripTrailingZeros().toPlainString() + " mm";
     }
 }
