@@ -56,13 +56,13 @@ public class UsuarioDAO {
     }
 
     public void actualizar(Usuario u) throws SQLException {
-        String sql = "UPDATE usuarios SET nombre=?, apellido=?, email=?, rol_id=?, activo=? WHERE id=?";
+        String sql = "UPDATE usuarios SET nombre=?, apellido=?, email=?, username=?, rol_id=? WHERE id=?";
         try (PreparedStatement ps = DatabaseConfig.getConnection().prepareStatement(sql)) {
             ps.setString(1, u.getNombre());
             ps.setString(2, u.getApellido());
             ps.setString(3, u.getEmail());
-            ps.setInt(4, u.getRolId());
-            ps.setBoolean(5, u.isActivo());
+            ps.setString(4, u.getUsername()); // Añadido por si también editas el username
+            ps.setInt(5, u.getRolId());
             ps.setInt(6, u.getId());
             ps.executeUpdate();
         }

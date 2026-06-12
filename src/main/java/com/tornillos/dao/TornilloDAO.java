@@ -251,4 +251,17 @@ public class TornilloDAO {
             ps.executeUpdate();
         }
     }
+
+    public List<Tornillo> listarConStockDisponible() throws SQLException {
+        List<Tornillo> lista = new ArrayList<>();
+        // Filtra estrictamente por tornillos activos que tengan unidades físicas disponibles
+        String sql = "SELECT t.* FROM tornillos t WHERE t.activo = true AND t.stock_actual > 0 ORDER BY t.nombre";
+        try (Statement st = DatabaseConfig.getConnection().createStatement();
+             ResultSet rs = st.executeQuery(sql)) {
+            while (rs.next()) {
+                lista.add(mapear(rs));
+            }
+        }
+        return lista;
+    }
 }

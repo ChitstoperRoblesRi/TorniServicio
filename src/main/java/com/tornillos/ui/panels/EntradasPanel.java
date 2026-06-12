@@ -175,27 +175,49 @@ public class EntradasPanel extends JPanel {
         table.getColumnModel().getColumn(0).setMinWidth(0);
         table.getColumnModel().getColumn(0).setMaxWidth(0);
 
+        // Se inicializa el JPopupMenu de forma local pero con retorno
+        final JPopupMenu menuContextual = buildContextMenu();
+
         table.addMouseListener(new MouseAdapter() {
             @Override
             public void mousePressed(MouseEvent e) {
-                if (SwingUtilities.isRightMouseButton(e)) {
+                evaluarClicContextual(e);
+            }
+
+            @Override
+            public void mouseReleased(MouseEvent e) {
+                evaluarClicContextual(e);
+            }
+
+            private void evaluarClicContextual(MouseEvent e) {
+                if (e.isPopupTrigger() || SwingUtilities.isRightMouseButton(e)) {
                     int row = table.rowAtPoint(e.getPoint());
-                    if (row >= 0)
+                    
+                    // CORRECCIÓN: Desplegar el menú únicamente si golpea un registro real de la tabla
+                    if (row >= 0 && row < table.getRowCount()) {
                         table.setRowSelectionInterval(row, row);
+                        menuContextual.show(table, e.getX(), e.getY());
+                    } else {
+                        table.clearSelection();
+                    }
                 }
             }
         });
 
+        p.add(AppTheme.darkScrollPane(table), BorderLayout.CENTER);
+        return p;
+    }
+
+    private JPopupMenu buildContextMenu() {
         JPopupMenu popup = AppTheme.darkPopup();
         JMenuItem itemEliminar = AppTheme.darkMenuItem("Eliminar entrada (revierte stock)", null);
         itemEliminar.addActionListener(e -> eliminarSeleccionada());
         if (SessionManager.getInstance().isGerente()) {
             popup.add(itemEliminar);
         }
-        table.setComponentPopupMenu(popup);
-
-        p.add(AppTheme.darkScrollPane(table), BorderLayout.CENTER);
-        return p;
+        
+        // CORRECCIÓN: Removida la instrucción table.setComponentPopupMenu(popup) de aquí adentro.
+        return popup;
     }
 
     private void buscar() {
