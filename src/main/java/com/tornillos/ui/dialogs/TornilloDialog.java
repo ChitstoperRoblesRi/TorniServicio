@@ -1,15 +1,41 @@
 package com.tornillos.ui.dialogs;
 
-import com.tornillos.config.AppTheme;
-import com.tornillos.dao.*;
-import com.tornillos.model.*;
-
-import javax.swing.*;
-import javax.swing.border.Border;
-import java.awt.*;
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Component;
+import java.awt.Dimension;
+import java.awt.FlowLayout;
+import java.awt.Font;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
+import java.awt.Insets;
+import java.awt.event.KeyAdapter;
 import java.math.BigDecimal;
 import java.sql.SQLException;
-import java.util.List;
+
+import javax.swing.BorderFactory;
+import javax.swing.Box;
+import javax.swing.BoxLayout;
+import javax.swing.JButton;
+import javax.swing.JComboBox;
+import javax.swing.JComponent;
+import javax.swing.JDialog;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.JTextArea;
+import javax.swing.JTextField;
+import javax.swing.JViewport;
+import javax.swing.border.Border;
+import javax.swing.plaf.basic.BasicComboBoxEditor;
+
+import com.tornillos.config.AppTheme;
+import com.tornillos.dao.CategoriaDAO;
+import com.tornillos.dao.TornilloDAO;
+import com.tornillos.model.Categoria;
+import com.tornillos.model.Tornillo;
 
 public class TornilloDialog extends JDialog {
 
@@ -32,7 +58,7 @@ public class TornilloDialog extends JDialog {
     private JComboBox<String>     cmbUnidad;
 
     // Campos de Texto Dinámicos (Clase Base) para cambiar texto en vivo
-    private JLabel lblDiametro, lblLongitud; 
+    private JLabel lblDiametro, lblLongitud, lblPaso;
 
     private static final Border BORDER_ERROR  = BorderFactory.createLineBorder(new Color(220, 53, 69), 2);
     private static final Border BORDER_NORMAL = BorderFactory.createLineBorder(new Color(100, 100, 100));
@@ -143,6 +169,9 @@ public class TornilloDialog extends JDialog {
         } catch (SQLException ex) {
             System.err.println("No se pudieron cargar categorías: " + ex.getMessage());
         }
+
+        // Aplicamos el estilo premium unificado
+        aplicarEstiloPremiumCombo(cmbCategoria);
         addRow(p, gbc, 2, "Categoría:", cmbCategoria);
 
         txtDescripcion = AppTheme.styledTextArea();
@@ -159,51 +188,60 @@ public class TornilloDialog extends JDialog {
         JPanel p = sectionPanel();
         GridBagConstraints gbc = defaultGbc();
 
-        // 1. Selector de Sistema de Medida (Fila 0)
-        cmbSistemaMedida = new JComboBox<>(new String[]{"MÉTRICO", "IMPERIAL"});
-        addRow(p, gbc, 0, "Sistema de medida:", cmbSistemaMedida);
-
-        // 2. Combos con opción "Otro" automatizada
-        cmbMaterial = new JComboBox<>(MATERIALES);
-        configurarOpcionOtro(cmbMaterial);
-        addRow(p, gbc, 1, "Material:", cmbMaterial);
-
-        cmbCabeza = new JComboBox<>(CABEZAS);
-        configurarOpcionOtro(cmbCabeza);
-        addRow(p, gbc, 2, "Tipo de cabeza:", cmbCabeza);
-
-        cmbUnidad = new JComboBox<>(UNIDADES);
-        configurarOpcionOtro(cmbUnidad);
-        addRow(p, gbc, 3, "Unidad de medida:", cmbUnidad);
-
-        // Campos numéricos
+        // Inicializamos los campos y labels dinámicos primero
         txtDiametro = AppTheme.styledField("ej. 8.0");
         txtLongitud = AppTheme.styledField("ej. 30.0");
         txtPaso     = AppTheme.styledField("ej. 1.25");
 
-        // Inicializamos los Labels Dinámicos
         lblDiametro = AppTheme.label("Diámetro (mm):");
         lblLongitud = AppTheme.label("Longitud (mm):");
+        lblPaso     = AppTheme.label("Paso de rosca (mm):");
 
-        // Listener dinámico Métrico / Imperial
-        cmbSistemaMedida.addActionListener(e -> {
-            String seleccion = (String) cmbSistemaMedida.getSelectedItem();
-            if ("MÉTRICO".equals(seleccion)) {
-                lblDiametro.setText("Diámetro (mm):");
-                lblLongitud.setText("Longitud (mm):");
-                txtPaso.setEnabled(true);
-            } else {
-                lblDiametro.setText("Diámetro (pulg):");
-                lblLongitud.setText("Longitud (pulg):");
-                txtPaso.setEnabled(false);
-                txtPaso.setText(""); // El paso de rosca no aplica a pulgadas (usa TPI)
+        // 1. Selector de Sistema de Medida con comportamiento síncrono inyectado
+        cmbSistemaMedida = new JComboBox<>(new String[]{"MÉTRICO", "IMPERIAL"}) {
+            @Override
+            public void setSelectedItem(Object anObject) {
+                super.setSelectedItem(anObject);
+                if (anObject != null && lblDiametro != null) {
+                    String texto = anObject.toString().toUpperCase();
+                    if (texto.contains("IMP")) {
+                        lblDiametro.setText("Diámetro (pulg):");
+                        lblLongitud.setText("Longitud (pulg):");
+                        lblPaso.setText("Hilos / Rosca (TPI):");
+                    } else {
+                        lblDiametro.setText("Diámetro (mm):");
+                        lblLongitud.setText("Longitud (mm):");
+                        lblPaso.setText("Paso de rosca (mm):");
+                    }
+                    txtPaso.setEnabled(true);
+                    p.revalidate();
+                    p.repaint();
+                }
             }
-        });
+        };
+        aplicarEstiloPremiumCombo(cmbSistemaMedida);
+        addRow(p, gbc, 0, "Sistema de medida:", cmbSistemaMedida);
+
+        // 2. Combos con opción "Otro" automatizada y estilo unificado
+        cmbMaterial = new JComboBox<>(MATERIALES);
+        configurarOpcionOtro(cmbMaterial);
+        aplicarEstiloPremiumCombo(cmbMaterial);
+        addRow(p, gbc, 1, "Material:", cmbMaterial);
+
+        cmbCabeza = new JComboBox<>(CABEZAS);
+        configurarOpcionOtro(cmbCabeza);
+        aplicarEstiloPremiumCombo(cmbCabeza);
+        addRow(p, gbc, 2, "Tipo de cabeza:", cmbCabeza);
+
+        cmbUnidad = new JComboBox<>(UNIDADES);
+        configurarOpcionOtro(cmbUnidad);
+        aplicarEstiloPremiumCombo(cmbUnidad);
+        addRow(p, gbc, 3, "Unidad de medida:", cmbUnidad);
 
         // Agregamos filas usando la sobrecarga de JLabels
         addRow(p, gbc, 4, lblDiametro, txtDiametro);
         addRow(p, gbc, 5, lblLongitud, txtLongitud);
-        addRow(p, gbc, 6, AppTheme.label("Paso de rosca (mm):"), txtPaso);
+        addRow(p, gbc, 6, lblPaso, txtPaso);
 
         return p;
     }
@@ -392,13 +430,13 @@ public class TornilloDialog extends JDialog {
             }
         }
         
-        // El paso solo se lee si estamos en sistema MÉTRICO
-        if ("MÉTRICO".equals(cmbSistemaMedida.getSelectedItem()) && !txtPaso.getText().isBlank()) {
+        // Lee paso de rosca (mm en MÉTRICO) o TPI (en IMPERIAL) si el campo no está vacío
+        if (!txtPaso.getText().isBlank()) {
             try {
                 pasoRosca = new BigDecimal(txtPaso.getText().trim());
                 if (pasoRosca.compareTo(BigDecimal.ZERO) <= 0) throw new NumberFormatException();
             } catch (NumberFormatException e) {
-                marcarError(txtPaso, "Paso de rosca inválido."); return null;
+                marcarError(txtPaso, "Paso de rosca o TPI inválido."); return null;
             }
         }
 
@@ -406,9 +444,14 @@ public class TornilloDialog extends JDialog {
         t.setCodigo(codigo); t.setNombre(nombre);
         t.setDescripcion(txtDescripcion.getText().trim());
         t.setUbicacion(txtUbicacion.getText().trim());
-        t.setSistemaMedida("IMPERIAL".equals(cmbSistemaMedida.getSelectedItem()) ? "IMPERIAL" : "METRICO");
+        // CÓDIGO CORREGIDO Y SEGURO
+        Object sistemaSel = cmbSistemaMedida.getSelectedItem();
+        String sistemaTexto = (sistemaSel != null) ? sistemaSel.toString().toUpperCase() : "";
+        t.setSistemaMedida(sistemaTexto.contains("IMP") ? "IMPERIAL" : "METRICO");
 
-        Categoria catSel = (Categoria) cmbCategoria.getSelectedItem();
+        // CÓDIGO CORREGIDO (Seguro para temas oscuros)
+        int catIndex = cmbCategoria.getSelectedIndex();
+        Categoria catSel = (catIndex >= 0) ? cmbCategoria.getItemAt(catIndex) : null;
         if (catSel != null && catSel.getId() > 0) t.setCategoriaId(catSel.getId());
 
         String material = (String) cmbMaterial.getSelectedItem();
@@ -428,10 +471,23 @@ public class TornilloDialog extends JDialog {
         return t;
     }
 
-    /** Traduce cadenas decimales o fracciones como "1/4" a BigDecimal de forma segura */
+    /** Traduce cadenas decimales, fracciones simples ("1/4") o fracciones mixtas ("1 1/2") a BigDecimal */
     private BigDecimal parseMedida(String text) throws NumberFormatException {
-        text = text.trim();
+        text = text.trim().replaceAll("\\s+", " "); // Limpia espacios dobles
         if (text.contains("/")) {
+            // Caso: Fracción mixta (ej. "1 1/2")
+            if (text.contains(" ")) {
+                String[] partesMixtas = text.split(" ");
+                if (partesMixtas.length == 2) {
+                    double entero = Double.parseDouble(partesMixtas[0]);
+                    String[] fraccion = partesMixtas[1].split("/");
+                    double numerador = Double.parseDouble(fraccion[0]);
+                    double denominador = Double.parseDouble(fraccion[1]);
+                    if (denominador == 0) throw new NumberFormatException();
+                    return BigDecimal.valueOf(entero + (numerador / denominador));
+                }
+            }
+            // Caso: Fracción simple (ej. "1/4")
             String[] partes = text.split("/");
             if (partes.length == 2) {
                 double numerador = Double.parseDouble(partes[0]);
@@ -516,5 +572,112 @@ public class TornilloDialog extends JDialog {
         return null;
     }
 
+    private static <T> void applyDarkComboFix(JComboBox<T> combo) {
+        combo.setEditable(true);
+        combo.setEditor(new DarkComboEditor());
+        Object sel = combo.getSelectedItem();
+        combo.getEditor().setItem(sel != null ? sel.toString() : "");
+        combo.addActionListener(e -> {
+            Object item = combo.getSelectedItem();
+            combo.getEditor().setItem(item != null ? item.toString() : "");
+        });
+    }
+
+    /**
+     * Editor personalizado para JComboBox en tema oscuro.
+     * - Fondo y texto del mismo color que los JTextField del formulario.
+     * - Bloquea por completo la escritura libre del usuario.
+     */
+    private static class DarkComboEditor extends BasicComboBoxEditor {
+        DarkComboEditor() {
+            editor.setBackground(AppTheme.BG_CARD_HOVER);   // mismo fondo que styledField
+            editor.setForeground(AppTheme.TEXT_PRIMARY);
+            editor.setCaretColor(AppTheme.TEXT_PRIMARY);
+            editor.setBorder(BorderFactory.createEmptyBorder(0, 4, 0, 4));
+            editor.setEditable(false); // bloquea la escritura libre
+
+            // Doble seguro: consumir cualquier tecla que llegue al editor
+            editor.addKeyListener(new KeyAdapter() {
+                @Override public void keyTyped(java.awt.event.KeyEvent e)    { e.consume(); }
+                @Override public void keyPressed(java.awt.event.KeyEvent e)  { e.consume(); }
+                @Override public void keyReleased(java.awt.event.KeyEvent e) { e.consume(); }
+            });
+        }
+
+        @Override
+        public void setItem(Object item) {
+            editor.setText(item != null ? item.toString() : "");
+        }
+
+        @Override
+        public Object getItem() {
+            return editor.getText();
+        }
+    }
+
     public boolean isGuardado() { return guardado; }
+
+    // ── CONFIGURACIÓN MAESTRA PREMIUM PARA COMBOS DEL FORMULARIO ──
+    private void aplicarEstiloPremiumCombo(JComboBox<?> combo) {
+        // 1. Reemplazar UI nativa por el botón plano personalizado
+        combo.setUI(new javax.swing.plaf.basic.BasicComboBoxUI() {
+            @Override
+            protected JButton createArrowButton() {
+                JButton btn = new JButton("▼");
+                btn.setFont(new Font("Segoe UI", Font.PLAIN, 10));
+                btn.setForeground(AppTheme.BG_BASE);
+                btn.setBackground(AppTheme.BG_CARD_HOVER);
+                btn.setBorder(BorderFactory.createEmptyBorder(2, 6, 2, 6));
+                btn.setContentAreaFilled(true);
+                btn.setFocusable(false);
+                return btn;
+            }
+        });
+
+        // 2. Borde redondeado con Antialiasing oficial
+        combo.setBorder(new javax.swing.border.Border() {
+            @Override
+            public void paintBorder(Component c, java.awt.Graphics g, int x, int y, int width, int height) {
+                java.awt.Graphics2D g2 = (java.awt.Graphics2D) g.create();
+                g2.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING, java.awt.RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(AppTheme.BORDER); 
+                g2.drawRoundRect(x, y, width - 1, height - 1, 8, 8);
+                g2.dispose();
+            }
+            @Override public Insets getBorderInsets(Component c) { return new Insets(2, 2, 2, 2); }
+            @Override public boolean isBorderOpaque() { return false; }
+        });
+
+        // 3. Editor oscuro bloqueado contra escritura libre
+        combo.setEditor(new javax.swing.plaf.basic.BasicComboBoxEditor() {
+            @Override
+            protected JTextField createEditorComponent() {
+                JTextField txt = new JTextField();
+                txt.setBackground(AppTheme.BG_CARD_HOVER);
+                txt.setForeground(AppTheme.TEXT_PRIMARY);
+                txt.setEditable(false);
+                txt.setBorder(BorderFactory.createEmptyBorder(2, 6, 2, 6));
+                txt.addMouseListener(new java.awt.event.MouseAdapter() {
+                    @Override
+                    public void mousePressed(java.awt.event.MouseEvent e) {
+                        if (combo.isEnabled()) {
+                            if (combo.isPopupVisible()) combo.hidePopup();
+                            else combo.showPopup();
+                        }
+                    }
+                });
+                return txt;
+            }
+        });
+        combo.setEditable(true);
+
+        // 4. Sincronización y listeners estables
+        Object inicial = combo.getSelectedItem();
+        combo.getEditor().setItem(inicial != null ? inicial.toString() : "");
+
+        combo.addActionListener(e -> {
+            Object item = combo.getSelectedItem();
+            combo.getEditor().setItem(item != null ? item.toString() : "");
+        });
+    }
 }

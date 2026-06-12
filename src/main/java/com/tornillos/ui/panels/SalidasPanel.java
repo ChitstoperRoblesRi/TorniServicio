@@ -229,18 +229,44 @@ public class SalidasPanel extends JPanel {
         
         cmbTornillo.setBackground(AppTheme.BG_CARD_HOVER);
         cmbTornillo.setForeground(AppTheme.TEXT_PRIMARY);
-        // Usamos el factory del tema para conservar el estilo premium (padding, fuente, bordes)
         JComboBox<String> cmbMotivo = AppTheme.styledCombo(MOTIVOS);
-        // Parche de fondo oscuro: activamos setEditable(true) solo para que Swing use nuestro
-        // editor personalizado. La escritura libre está bloqueada dentro del JTextField interno.
+        
+        // UI del botón de flecha premium
+        cmbMotivo.setUI(new javax.swing.plaf.basic.BasicComboBoxUI() {
+            @Override
+            protected JButton createArrowButton() {
+                JButton btn = new JButton("▼");
+                btn.setFont(new Font("Segoe UI", Font.PLAIN, 10));
+                btn.setForeground(AppTheme.BG_BASE);
+                btn.setBackground(AppTheme.BG_CARD_HOVER);
+                btn.setBorder(BorderFactory.createEmptyBorder(2, 6, 2, 6));
+                btn.setContentAreaFilled(true);
+                btn.setFocusable(false);
+                return btn;
+            }
+        });
+
+        // Borde redondeado con el color oficial
+        cmbMotivo.setBorder(new javax.swing.border.Border() {
+            @Override
+            public void paintBorder(Component c, java.awt.Graphics g, int x, int y, int width, int height) {
+                java.awt.Graphics2D g2 = (java.awt.Graphics2D) g.create();
+                g2.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING, java.awt.RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(AppTheme.BORDER);
+                g2.drawRoundRect(x, y, width - 1, height - 1, 8, 8);
+                g2.dispose();
+            }
+            @Override public Insets getBorderInsets(Component c) { return new Insets(2, 2, 2, 2); }
+            @Override public boolean isBorderOpaque() { return false; }
+        });
+
+        // Editor oscuro protegido
         cmbMotivo.setEditor(new javax.swing.plaf.basic.BasicComboBoxEditor() {
             @Override
             protected JTextField createEditorComponent() {
                 JTextField txt = new JTextField();
                 txt.setBackground(AppTheme.BG_CARD_HOVER);
                 txt.setForeground(AppTheme.TEXT_PRIMARY);
-                // El campo de texto interno es no-editable para bloquear escritura libre,
-                // pero el combo sí necesita setEditable(true) para que este editor se active.
                 txt.setEditable(false);
                 txt.setBorder(BorderFactory.createEmptyBorder(2, 6, 2, 6));
                 txt.addMouseListener(new java.awt.event.MouseAdapter() {
@@ -255,9 +281,14 @@ public class SalidasPanel extends JPanel {
                 return txt;
             }
         });
-        // Necesario para que Swing active el editor personalizado y pinte el fondo oscuro.
-        // La escritura libre está bloqueada en el JTextField interno (txt.setEditable(false)).
         cmbMotivo.setEditable(true);
+        
+        Object inicialMotivo = cmbMotivo.getSelectedItem();
+        cmbMotivo.getEditor().setItem(inicialMotivo != null ? inicialMotivo.toString() : "");
+        cmbMotivo.addActionListener(ev -> {
+            Object item = cmbMotivo.getSelectedItem();
+            cmbMotivo.getEditor().setItem(item != null ? item.toString() : "");
+        });
 
         JTextField txtCantidad = AppTheme.styledField("0");
         JTextField txtPrecio   = AppTheme.styledField("0.00");
@@ -278,6 +309,32 @@ public class SalidasPanel extends JPanel {
             }
         });
         cmbTornillo.setSelectedIndex(-1);
+        // Sincronización estética para el combo de búsqueda predictiva (Conserva la escritura libre)
+        cmbTornillo.setUI(new javax.swing.plaf.basic.BasicComboBoxUI() {
+            @Override
+            protected JButton createArrowButton() {
+                JButton btn = new JButton("▼");
+                btn.setFont(new Font("Segoe UI", Font.PLAIN, 10));
+                btn.setForeground(AppTheme.BG_BASE);
+                btn.setBackground(AppTheme.BG_CARD_HOVER);
+                btn.setBorder(BorderFactory.createEmptyBorder(2, 6, 2, 6));
+                btn.setContentAreaFilled(true);
+                btn.setFocusable(false);
+                return btn;
+            }
+        });
+        cmbTornillo.setBorder(new javax.swing.border.Border() {
+            @Override
+            public void paintBorder(Component c, java.awt.Graphics g, int x, int y, int width, int height) {
+                java.awt.Graphics2D g2 = (java.awt.Graphics2D) g.create();
+                g2.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING, java.awt.RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(AppTheme.BORDER);
+                g2.drawRoundRect(x, y, width - 1, height - 1, 8, 8);
+                g2.dispose();
+            }
+            @Override public Insets getBorderInsets(Component c) { return new Insets(2, 2, 2, 2); }
+            @Override public boolean isBorderOpaque() { return false; }
+        });
 
         String folio = FolioGenerator.generarSalida();
         JTextField txtFolio = AppTheme.styledField(folio);
@@ -338,7 +395,6 @@ public class SalidasPanel extends JPanel {
             }
         });
         gbc.gridx = 0; gbc.gridy = 8; gbc.gridwidth = 2;
-        gbc.weightx = 0.0;
         form.add(btns, gbc);
         btns.add(btnCancel); btns.add(btnGuardar);
         dlg.add(new JScrollPane(form));
