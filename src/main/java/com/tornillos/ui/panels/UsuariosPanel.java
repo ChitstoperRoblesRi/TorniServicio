@@ -111,7 +111,6 @@ public class UsuariosPanel extends JPanel {
                 Component c = super.prepareRenderer(r, row, col);
                 if (!isRowSelected(row)) {
                     c.setBackground(row % 2 == 0 ? AppTheme.BG_CARD : AppTheme.BG_SURFACE);
-                    // Colorear estado
                     if (col == 6) {
                         Object val = getValueAt(row, col);
                         if ("Inactivo".equals(val != null ? val.toString() : "")) {
@@ -133,7 +132,9 @@ public class UsuariosPanel extends JPanel {
         table.getColumnModel().getColumn(0).setMinWidth(0);
         table.getColumnModel().getColumn(0).setMaxWidth(0);
 
-        // Doble click = editar
+        // Inicializar el JPopupMenu dinámico con retorno controlado
+        final JPopupMenu menuContextual = buildContextMenu();
+
         table.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
@@ -142,20 +143,44 @@ public class UsuariosPanel extends JPanel {
                     if (row >= 0)
                         abrirDialogoPorFila(row);
                 }
-                if (SwingUtilities.isRightMouseButton(e)) {
+            }
+
+            @Override
+            public void mousePressed(MouseEvent e) {
+                evaluarClicContextual(e);
+            }
+
+            @Override
+            public void mouseReleased(MouseEvent e) {
+                evaluarClicContextual(e);
+            }
+
+            private void evaluarClicContextual(MouseEvent e) {
+                if (e.isPopupTrigger() || SwingUtilities.isRightMouseButton(e)) {
                     int row = table.rowAtPoint(e.getPoint());
-                    if (row >= 0)
+                    
+                    // CORRECCIÓN: Validar posición del puntero para evitar abrir popup en la zona vacía
+                    if (row >= 0 && row < table.getRowCount()) {
                         table.setRowSelectionInterval(row, row);
+                        menuContextual.show(table, e.getX(), e.getY());
+                    } else {
+                        table.clearSelection();
+                    }
                 }
             }
         });
 
-        // Menu contextual
+        p.add(AppTheme.darkScrollPane(table), BorderLayout.CENTER);
+        return p;
+    }
+
+    private JPopupMenu buildContextMenu() {
         JPopupMenu popup = AppTheme.darkPopup();
         JMenuItem itemEditar = AppTheme.darkMenuItem("Editar usuario", null);
         JMenuItem itemPassword = AppTheme.darkMenuItem("Cambiar contrasena", null);
         JMenuItem itemInhabilitar = AppTheme.darkMenuItem("Inhabilitar usuario", null);
         JMenuItem itemHabilitar = AppTheme.darkMenuItem("Habilitar usuario", null);
+        
         itemEditar.addActionListener(e -> {
             int r = table.getSelectedRow();
             if (r >= 0)
@@ -176,16 +201,16 @@ public class UsuariosPanel extends JPanel {
             if (r >= 0)
                 cambiarEstado((int) tableModel.getValueAt(r, 0), true);
         });
+        
         popup.add(itemEditar);
         popup.add(AppTheme.darkSeparator());
         popup.add(itemPassword);
         popup.add(AppTheme.darkSeparator());
         popup.add(itemInhabilitar);
         popup.add(itemHabilitar);
-        table.setComponentPopupMenu(popup);
-
-        p.add(AppTheme.darkScrollPane(table), BorderLayout.CENTER);
-        return p;
+        
+        // CORRECCIÓN: Removido el llamado table.setComponentPopupMenu(popup) global.
+        return popup;
     }
 
     private void buscar() {
@@ -204,8 +229,7 @@ public class UsuariosPanel extends JPanel {
             protected void done() {
                 try {
                     poblarTabla(get());
-                } catch (Exception ex) {
-                    /* ignored */ }
+                } catch (Exception ex) { /* ignored */ }
             }
         };
         w.execute();
@@ -247,12 +271,17 @@ public class UsuariosPanel extends JPanel {
         JTextField txtApellido = AppTheme.styledField("Apellido");
         JTextField txtEmail = AppTheme.styledField("Email");
         JTextField txtUsername = AppTheme.styledField("Username");
+        
         if (usuario != null) {
             txtNombre.setText(usuario.getNombre());
             txtApellido.setText(usuario.getApellido());
             txtEmail.setText(usuario.getEmail());
             txtUsername.setText(usuario.getUsername());
+            
+            txtUsername.setEditable(false);
+            txtUsername.setForeground(AppTheme.TEXT_MUTED);
         }
+        
         JPasswordField txtPass = AppTheme.styledPasswordField();
         JComboBox<String> cmbRol = AppTheme.styledCombo(new String[] { "EMPLEADO", "GERENTE" });
         if (usuario != null && "GERENTE".equals(usuario.getRol()))
@@ -285,11 +314,17 @@ public class UsuariosPanel extends JPanel {
                         throw new IllegalArgumentException("La contraseña es obligatoria");
                     usuarioDAO.crear(u, pass);
                 } else {
-                    usuario.setNombre(txtNombre.getText().trim());
-                    usuario.setApellido(txtApellido.getText().trim());
-                    usuario.setEmail(txtEmail.getText().trim());
-                    usuario.setRolId(cmbRol.getSelectedIndex() == 1 ? 1 : 2);
-                    usuarioDAO.actualizar(usuario);
+                    Usuario u = new Usuario();
+                    u.setId(usuario.getId());
+                    u.setNombre(txtNombre.getText().trim());
+                    u.setApellido(txtApellido.getText().trim());
+                    u.setEmail(txtEmail.getText().trim());
+                    u.setUsername(txtUsername.getText().trim());
+                    u.setRolId(cmbRol.getSelectedIndex() == 1 ? 1 : 2);
+                    
+                    u.setActivo(usuario.isActivo());
+                    
+                    usuarioDAO.actualizar(u);
                 }
                 dlg.dispose();
                 refresh();
@@ -327,6 +362,10 @@ public class UsuariosPanel extends JPanel {
         u.setEmail(tableModel.getValueAt(row, 4).toString());
         u.setRol(tableModel.getValueAt(row, 5).toString());
         u.setRolId("GERENTE".equals(u.getRol()) ? 1 : 2);
+        
+        String estadoStr = tableModel.getValueAt(row, 6).toString();
+        u.setActivo("Activo".equals(estadoStr));
+        
         abrirDialogoUsuario(u);
     }
 
@@ -386,8 +425,7 @@ public class UsuariosPanel extends JPanel {
             protected void done() {
                 try {
                     poblarTabla(get());
-                } catch (Exception ex) {
-                    /* ignored */ }
+                } catch (Exception ex) { /* ignored */ }
             }
         };
         w.execute();

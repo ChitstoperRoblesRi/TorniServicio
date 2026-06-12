@@ -24,7 +24,8 @@ public class MovimientoInventarioDAO {
                 "FROM tornillos t " +
                 "LEFT JOIN (SELECT tornillo_id, SUM(cantidad) AS neto FROM entradas GROUP BY tornillo_id) ent ON ent.tornillo_id=t.id " +
                 "LEFT JOIN (SELECT tornillo_id, SUM(cantidad) AS neto FROM salidas GROUP BY tornillo_id) sal ON sal.tornillo_id=t.id " +
-                "WHERE t.activo=true AND (t.stock_actual - COALESCE(ent.neto,0) + COALESCE(sal.neto,0)) > 0 " +
+                // CORRECCIÓN AQUÍ: Cambiado de > 0 a >= 0 para incluir tornillos creados con stock vacío
+                "WHERE t.activo=true AND (t.stock_actual - COALESCE(ent.neto,0) + COALESCE(sal.neto,0)) >= 0 " + 
                 "UNION ALL " +
                 "SELECT e.fecha, e.tornillo_id, t.nombre, t.codigo, " +
                     "'Entrada' AS tipo_movimiento, e.cantidad, e.cantidad AS ajuste, " +

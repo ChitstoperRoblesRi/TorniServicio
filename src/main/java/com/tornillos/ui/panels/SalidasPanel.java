@@ -162,26 +162,47 @@ public class SalidasPanel extends JPanel {
         table.getColumnModel().getColumn(0).setMinWidth(0);
         table.getColumnModel().getColumn(0).setMaxWidth(0);
 
+        // Inicializar JPopupMenu local con retorno controlado
+        final JPopupMenu menuContextual = buildContextMenu();
+
         table.addMouseListener(new MouseAdapter() {
             @Override public void mousePressed(MouseEvent e) {
-                if (SwingUtilities.isRightMouseButton(e)) {
+                evaluarClicContextual(e);
+            }
+
+            @Override public void mouseReleased(MouseEvent e) {
+                evaluarClicContextual(e);
+            }
+
+            private void evaluarClicContextual(MouseEvent e) {
+                if (e.isPopupTrigger() || SwingUtilities.isRightMouseButton(e)) {
                     int row = table.rowAtPoint(e.getPoint());
-                    if (row >= 0) table.setRowSelectionInterval(row, row);
+                    
+                    // CORRECCIÓN: Desplegar el menú únicamente si golpea un registro real de la lista
+                    if (row >= 0 && row < table.getRowCount()) {
+                        table.setRowSelectionInterval(row, row);
+                        menuContextual.show(table, e.getX(), e.getY());
+                    } else {
+                        table.clearSelection();
+                    }
                 }
             }
         });
 
-        // Menu contextual
+        p.add(AppTheme.darkScrollPane(table), BorderLayout.CENTER);
+        return p;
+    }
+
+    private JPopupMenu buildContextMenu() {
         JPopupMenu popup = AppTheme.darkPopup();
         JMenuItem itemEliminar = AppTheme.darkMenuItem("Eliminar salida (revierte stock)", null);
         itemEliminar.addActionListener(e -> eliminarSeleccionada());
         if (SessionManager.getInstance().isGerente()) {
             popup.add(itemEliminar);
         }
-        table.setComponentPopupMenu(popup);
-
-        p.add(AppTheme.darkScrollPane(table), BorderLayout.CENTER);
-        return p;
+        
+        // CORRECCIÓN: Removida la instrucción table.setComponentPopupMenu(popup) global.
+        return popup;
     }
 
     private void buscar() {
@@ -207,6 +228,7 @@ public class SalidasPanel extends JPanel {
         }
     }
 
+    // CORRECCIÓN: Modificado a visibilidad 'public' para permitir la navegación directa desde las acciones rápidas del Dashboard
     public void abrirFormularioSalida() {
         JDialog dlg = new JDialog((JFrame) SwingUtilities.getWindowAncestor(this),
             "Registrar Salida", true);
@@ -222,25 +244,26 @@ public class SalidasPanel extends JPanel {
         gbc.insets = new Insets(6, 6, 6, 6);
 
         List<Tornillo> tornillos;
-        try { tornillos = tornilloDAO.listarTodos(); }
-        catch (Exception e) { JOptionPane.showMessageDialog(this, "Error: " + e.getMessage()); return; }
+        try { 
+            // CORREGIDO: Ahora jala únicamente los tornillos con existencias disponibles en inventario
+            tornillos = tornilloDAO.listarConStockDisponible(); 
+        } catch (Exception e) { 
+            JOptionPane.showMessageDialog(this, "Error cargando existencias: " + e.getMessage()); 
+            return; 
+        }
 
         JComboBox<Tornillo> cmbTornillo = com.tornillos.util.SearchableComboBoxFactory.create(tornillos);
         
         cmbTornillo.setBackground(AppTheme.BG_CARD_HOVER);
         cmbTornillo.setForeground(AppTheme.TEXT_PRIMARY);
-        // Usamos el factory del tema para conservar el estilo premium (padding, fuente, bordes)
         JComboBox<String> cmbMotivo = AppTheme.styledCombo(MOTIVOS);
-        // Parche de fondo oscuro: activamos setEditable(true) solo para que Swing use nuestro
-        // editor personalizado. La escritura libre está bloqueada dentro del JTextField interno.
+        
         cmbMotivo.setEditor(new javax.swing.plaf.basic.BasicComboBoxEditor() {
             @Override
             protected JTextField createEditorComponent() {
                 JTextField txt = new JTextField();
                 txt.setBackground(AppTheme.BG_CARD_HOVER);
                 txt.setForeground(AppTheme.TEXT_PRIMARY);
-                // El campo de texto interno es no-editable para bloquear escritura libre,
-                // pero el combo sí necesita setEditable(true) para que este editor se active.
                 txt.setEditable(false);
                 txt.setBorder(BorderFactory.createEmptyBorder(2, 6, 2, 6));
                 txt.addMouseListener(new java.awt.event.MouseAdapter() {
@@ -255,8 +278,6 @@ public class SalidasPanel extends JPanel {
                 return txt;
             }
         });
-        // Necesario para que Swing active el editor personalizado y pinte el fondo oscuro.
-        // La escritura libre está bloqueada en el JTextField interno (txt.setEditable(false)).
         cmbMotivo.setEditable(true);
 
         JTextField txtCantidad = AppTheme.styledField("0");
@@ -264,7 +285,6 @@ public class SalidasPanel extends JPanel {
         JTextField txtCliente  = AppTheme.styledField("Nombre del cliente (opcional)");
         JTextArea txtObs       = AppTheme.styledTextArea(); txtObs.setRows(2);
 
-        // Label stock disponible
         JLabel lblStock = new JLabel("Stock disponible: --");
         lblStock.setFont(AppTheme.FONT_SMALL);
         lblStock.setForeground(AppTheme.SUCCESS_TEXT);
@@ -322,7 +342,6 @@ public class SalidasPanel extends JPanel {
                 salidaDAO.registrar(s);
                 dlg.dispose();
 
-                // El sistema dispara alertas automaticamente (caso de uso: actor Sistema)
                 new Thread(() -> {
                     alertaService.verificarAlertas();
                     SwingUtilities.invokeLater(() -> mainFrame.actualizarBadgeAlertas());
