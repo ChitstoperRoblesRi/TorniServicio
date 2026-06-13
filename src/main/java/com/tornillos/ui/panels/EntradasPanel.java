@@ -294,6 +294,7 @@ public class EntradasPanel extends JPanel {
             @Override public Insets getBorderInsets(Component c) { return new Insets(2, 2, 2, 2); }
             @Override public boolean isBorderOpaque() { return false; }
         });
+        unificarEstiloEditorCombo(cmbTornillo, true);
 
         JTextField txtCantidad = AppTheme.styledField("0");
         JTextField txtPrecio = AppTheme.styledField("0.00");
@@ -302,10 +303,20 @@ public class EntradasPanel extends JPanel {
         txtObs.setRows(2);
 
         cmbTornillo.addActionListener(e -> {
-            Tornillo seleccionado = (Tornillo) cmbTornillo.getSelectedItem();
-            if (seleccionado != null && seleccionado.getPrecioCosto() != null) {
-                txtPrecio.setText(seleccionado.getPrecioCosto().toPlainString());
+            // 🌟 CLAVE: Obtenemos la selección como Object genérico primero
+            Object seleccionadoObj = cmbTornillo.getSelectedItem();
+            
+            // Solo procesamos la lógica si lo seleccionado es verdaderamente una instancia de Tornillo
+            if (seleccionadoObj instanceof Tornillo) {
+                Tornillo seleccionado = (Tornillo) seleccionadoObj;
+                if (seleccionado.getPrecioCosto() != null) {
+                    txtPrecio.setText(seleccionado.getPrecioCosto().toPlainString());
+                } else {
+                    txtPrecio.setText("0.00");
+                }
             } else {
+                // Si es un String de texto libre porque el usuario estaba escribiendo,
+                // ignoramos pacíficamente el evento sin romper la consola
                 txtPrecio.setText("0.00");
             }
         });
@@ -346,6 +357,23 @@ public class EntradasPanel extends JPanel {
                 BigDecimal precio = new BigDecimal(txtPrecio.getText().trim());
                 if (cantidad <= 0)
                     throw new IllegalArgumentException("Cantidad debe ser mayor a 0");
+                if (precio.compareTo(BigDecimal.ZERO) <= 0)
+                    throw new IllegalArgumentException("El precio unitario debe ser un número positivo mayor a 0.");
+
+                BigDecimal totalCalculado = precio.multiply(BigDecimal.valueOf(cantidad));
+                String resumenTicket = String.format(
+                    "¿Confirmar el registro de esta Entrada?\n\n" +
+                    "▪ Producto:  %s\n" +
+                    "▪ Cantidad:  %d unidades\n" +
+                    "▪ P. Unitario: $%,.2f\n" +
+                    "▪ Total Operación: $%,.2f\n\n",
+                    t.getNombre(), cantidad, precio, totalCalculado
+                );
+                int confirmacion = JOptionPane.showConfirmDialog(
+                    dlg, resumenTicket, "Confirmar Entrada de Inventario",
+                    JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE
+                );
+                if (confirmacion != JOptionPane.YES_OPTION) return;
 
                 Entrada entrada = new Entrada();
                 entrada.setFolio(folio);
@@ -393,6 +421,45 @@ public class EntradasPanel extends JPanel {
         gbc.gridx = 1;
         gbc.weightx = 1.0;
         p.add(field, gbc);
+    }
+
+    /**
+     * Modifica los componentes visuales del editor interno del JComboBox para adaptarlo
+     * al tema oscuro sin alterar ni destruir los listeners funcionales del componente.
+     */
+    private void unificarEstiloEditorCombo(JComboBox<?> combo, boolean esBuscable) {
+        // 🌟 CLAVE: Obtenemos el componente editor actual en lugar de destruirlo con setEditor()
+        Component editorComp = combo.getEditor().getEditorComponent();
+        
+        if (editorComp instanceof JTextField) {
+            JTextField txt = (JTextField) editorComp;
+            
+            // Aplicamos los colores del tema oscuro premium
+            txt.setBackground(AppTheme.BG_CARD_HOVER);
+            txt.setForeground(AppTheme.TEXT_PRIMARY);
+            txt.setBorder(BorderFactory.createEmptyBorder(2, 6, 2, 6)); // Padding interno
+            
+            // Si es buscable (como los tornillos), permitimos la edición. 
+            // Si no (como los motivos), se bloquea para que actúe como dropdown cerrado.
+            txt.setEditable(esBuscable);
+            
+            // El MouseListener de despliegue automático solo se añade si NO es buscable.
+            // Si es buscable, el usuario necesita hacer clic para posicionar el cursor y escribir.
+            if (!esBuscable) {
+                txt.addMouseListener(new java.awt.event.MouseAdapter() {
+                    @Override
+                    public void mousePressed(java.awt.event.MouseEvent e) {
+                        if (combo.isEnabled()) {
+                            if (combo.isPopupVisible()) combo.hidePopup();
+                            else combo.showPopup();
+                        }
+                    }
+                });
+            }
+        }
+        
+        // Forzamos a que el combo reconozca que debe pintar su editor interno
+        combo.setEditable(true);
     }
 
     private void poblarTabla(List<Entrada> lista) {

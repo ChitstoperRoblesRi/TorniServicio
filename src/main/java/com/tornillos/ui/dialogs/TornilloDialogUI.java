@@ -193,7 +193,7 @@ class TornilloDialogUI {
         addRow(p, gbc, 0, "Precio de costo ($) *:", txtPrecioCosto);
         addRow(p, gbc, 1, "Precio de venta ($) *:", txtPrecioVenta);
 
-        JLabel hint = new JLabel("⚠  El precio de venta debe ser mayor o igual al costo.");
+        JLabel hint = new JLabel("El precio de venta debe ser mayor o igual al costo.");
         hint.setFont(new Font("Segoe UI", Font.ITALIC, 11));
         hint.setForeground(new Color(160, 120, 0));
         gbc.gridx = 1; gbc.gridy = 2;
@@ -212,12 +212,6 @@ class TornilloDialogUI {
         addRow(p, gbc, 1, "Stock mínimo (alerta) *:", txtStockMin);
         addRow(p, gbc, 2, "Stock máximo:",             txtStockMax);
         addRow(p, gbc, 3, "Ubicación en almacén:",     txtUbicacion);
-
-        JLabel hintMin = new JLabel("⚠  Un stock mínimo de 0 deshabilita las alertas de reabastecimiento.");
-        hintMin.setFont(new Font("Segoe UI", Font.ITALIC, 11));
-        hintMin.setForeground(new Color(160, 120, 0));
-        gbc.gridx = 1; gbc.gridy = 4;
-        p.add(hintMin, gbc);
 
         return p;
     }
