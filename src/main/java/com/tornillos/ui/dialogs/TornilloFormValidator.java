@@ -19,10 +19,6 @@ class TornilloFormValidator {
         this.tornilloOriginal = tornilloOriginal;
     }
 
-    /**
-     * Valida todos los campos y, si son correctos, construye y devuelve el Tornillo.
-     * Devuelve {@code null} si hay algún error de validación.
-     */
     Tornillo validarYConstruir() {
         boolean trackingError = false;
         StringBuilder errores = new StringBuilder("Por favor, corrige los siguientes campos:\n\n");
@@ -64,22 +60,27 @@ class TornilloFormValidator {
         }
 
         // ── 3. VALIDACIÓN DE STOCKS ──────────────────────────────────────────────
+        String textStockMin = ui.txtStockMin.getText().trim();
         Integer stockMin = parseStock(ui.txtStockMin);
-        if (stockMin == null) {
+        
+        if (textStockMin.isEmpty() || stockMin == null) {
             ui.marcarBordeError(ui.txtStockMin);
-            errores.append("• El stock mínimo es inválido.\n");
+            errores.append("• El stock mínimo es obligatorio y debe ser un número entero mayor o igual a 0.\n");
             trackingError = true;
         }
 
-        Integer stockMax = parseStock(ui.txtStockMax);
-        if (stockMax == null) {
-            ui.marcarBordeError(ui.txtStockMax);
-            errores.append("• El stock máximo es inválido.\n");
-            trackingError = true;
+        Integer stockMax = null;
+        String textStockMax = ui.txtStockMax.getText().trim();
+        if (!textStockMax.isEmpty()) {
+            stockMax = parseStock(ui.txtStockMax);
+            if (stockMax == null) {
+                ui.marcarBordeError(ui.txtStockMax);
+                errores.append("• El stock máximo debe ser un número entero válido.\n");
+                trackingError = true;
+            }
         }
 
-        // Validación cruzada de stocks
-        if (stockMin != null && stockMax != null && stockMax > 0 && stockMax < stockMin) {
+        if (stockMin != null && stockMax != null && stockMax < stockMin) {
             ui.marcarBordeError(ui.txtStockMax);
             errores.append("• El stock máximo no puede ser menor al stock mínimo.\n");
             trackingError = true;
@@ -87,13 +88,19 @@ class TornilloFormValidator {
 
         int stockInicial = 0;
         if (tornilloOriginal == null) {
-            Integer si = parseStock(ui.txtStockInicial);
-            if (si == null) {
-                ui.marcarBordeError(ui.txtStockInicial);
-                errores.append("• El stock inicial es inválido.\n");
-                trackingError = true;
+            String raw = ui.txtStockInicial.getText().trim();
+            
+            if (!raw.isEmpty()) { 
+                Integer si = parseStock(ui.txtStockInicial);
+                if (si == null) {
+                    ui.marcarBordeError(ui.txtStockInicial);
+                    errores.append("• El stock inicial es inválido.\n");
+                    trackingError = true;
+                } else {
+                    stockInicial = si;
+                }
             } else {
-                stockInicial = si;
+                stockInicial = 0; 
             }
         }
 
@@ -122,7 +129,6 @@ class TornilloFormValidator {
             }
         }
 
-        // Nota: El paso de rosca usa directamente un new BigDecimal en tu código original
         BigDecimal pasoRosca = null;
         if (!ui.txtPaso.getText().isBlank()) {
             try {
@@ -137,10 +143,9 @@ class TornilloFormValidator {
 
         // ── 5. EVALUACIÓN FINAL DE ERRORES ACUMULADOS ────────────────────────────
         if (trackingError) {
-            // Lanza un único diálogo limpio con la lista detallada de errores
             JOptionPane.showMessageDialog(ui.getOwner(), errores.toString(), 
                     "Campos inválidos", JOptionPane.WARNING_MESSAGE);
-            return null; // Detiene el flujo de guardado en TornilloDialog
+            return null;
         }
 
         // ── 6. CONSTRUCCIÓN DEL OBJETO (Si todo está correcto) ────────────────────
@@ -152,7 +157,8 @@ class TornilloFormValidator {
 
         Object sistemaSel = ui.cmbSistemaMedida.getSelectedItem();
         String sistemaTexto = (sistemaSel != null) ? sistemaSel.toString().toUpperCase() : "";
-        t.setSistemaMedida(sistemaTexto.contains("IMP") ? "IMPERIAL" : "METRICO");
+        boolean esImperial = sistemaTexto.contains("IMP");
+        t.setSistemaMedida(esImperial ? "IMPERIAL" : "METRICO");
 
         int catIndex = ui.cmbCategoria.getSelectedIndex();
         Categoria catSel = (catIndex >= 0) ? ui.cmbCategoria.getItemAt(catIndex) : null;
@@ -166,6 +172,18 @@ class TornilloFormValidator {
 
         String unidad = (String) ui.cmbUnidad.getSelectedItem();
         t.setUnidadMedida(unidad != null && !unidad.isBlank() ? unidad : "PZA");
+
+        if (esImperial) {
+        if (diametro != null) {
+            diametro = diametro.multiply(new BigDecimal("25.4"));
+        }
+        if (longitud != null) {
+            longitud = longitud.multiply(new BigDecimal("25.4"));
+        }
+        if (pasoRosca != null && pasoRosca.compareTo(BigDecimal.ZERO) > 0) {
+            pasoRosca = new BigDecimal("25.4").divide(pasoRosca, java.math.MathContext.DECIMAL64);
+        }
+    }
 
         t.setDiametroMm(diametro);
         t.setLongitudMm(longitud);
@@ -181,11 +199,13 @@ class TornilloFormValidator {
 
     // ── Helpers de parseo ────────────────────────────────────────────────────
 
-    /** Parsea un campo de precio; devuelve {@code null} y marca error si es inválido. */
     private BigDecimal parsePrecio(JComponent campo) {
         try {
             String raw = ((javax.swing.JTextField) campo).getText().trim();
-            BigDecimal valor = new BigDecimal(raw.isEmpty() ? "0" : raw);
+            if (raw.isEmpty()) {
+                return null;
+            }
+            BigDecimal valor = new BigDecimal(raw);
             if (valor.compareTo(BigDecimal.ZERO) < 0) throw new NumberFormatException();
             return valor;
         } catch (NumberFormatException e) {
@@ -193,11 +213,13 @@ class TornilloFormValidator {
         }
     }
 
-    /** Parsea un campo de stock entero; devuelve {@code null} y marca error si es inválido. */
     private Integer parseStock(JComponent campo) {
         try {
             String raw = ((javax.swing.JTextField) campo).getText().trim();
-            int valor = Integer.parseInt(raw.isEmpty() ? "0" : raw);
+            if (raw.isEmpty()) {
+                return null;
+            }
+            int valor = Integer.parseInt(raw);
             if (valor < 0) throw new NumberFormatException();
             return valor;
         } catch (NumberFormatException e) {
@@ -205,29 +227,31 @@ class TornilloFormValidator {
         }
     }
 
-    /**
-     * Convierte texto a BigDecimal soportando fracciones ("1/4") y números mixtos ("1 1/2").
-     */
     private BigDecimal parseMedida(String text) throws NumberFormatException {
         text = text.trim().replaceAll("\\s+", " ");
         if (text.contains("/")) {
             if (text.contains(" ")) {
                 String[] partesMixtas = text.split(" ");
                 if (partesMixtas.length == 2) {
-                    double entero      = Double.parseDouble(partesMixtas[0]);
-                    String[] fraccion  = partesMixtas[1].split("/");
-                    double numerador   = Double.parseDouble(fraccion[0]);
-                    double denominador = Double.parseDouble(fraccion[1]);
-                    if (denominador == 0) throw new NumberFormatException();
-                    return BigDecimal.valueOf(entero + (numerador / denominador));
+                    BigDecimal entero = new BigDecimal(partesMixtas[0]);
+                    String[] fraccion = partesMixtas[1].split("/");
+                    BigDecimal numerador = new BigDecimal(fraccion[0]);
+                    BigDecimal denominador = new BigDecimal(fraccion[1]);
+                    
+                    if (denominador.compareTo(BigDecimal.ZERO) == 0) throw new NumberFormatException();
+                    
+                    BigDecimal parteFraccionaria = numerador.divide(denominador, java.math.MathContext.DECIMAL64);
+                    return entero.add(parteFraccionaria);
                 }
             }
             String[] partes = text.split("/");
             if (partes.length == 2) {
-                double numerador   = Double.parseDouble(partes[0]);
-                double denominador = Double.parseDouble(partes[1]);
-                if (denominador == 0) throw new NumberFormatException();
-                return BigDecimal.valueOf(numerador / denominador);
+                BigDecimal numerador = new BigDecimal(partes[0]);
+                BigDecimal denominador = new BigDecimal(partes[1]);
+                
+                if (denominador.compareTo(BigDecimal.ZERO) == 0) throw new NumberFormatException();
+                
+                return numerador.divide(denominador, java.math.MathContext.DECIMAL64);
             }
         }
         return new BigDecimal(text);

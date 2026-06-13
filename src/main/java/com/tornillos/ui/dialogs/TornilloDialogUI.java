@@ -27,10 +27,6 @@ import com.tornillos.model.Categoria;
 import com.tornillos.model.Tornillo;
 import com.tornillos.service.TornilloService;
 
-/**
- * Construye y expone todos los componentes visuales del formulario de tornillo.
- * Esta clase es package-private: solo la usa TornilloDialog.
- */
 class TornilloDialogUI {
 
     final JTextField txtCodigo, txtNombre, txtUbicacion;
@@ -53,20 +49,18 @@ class TornilloDialogUI {
     private static final String[] MATERIALES = {
         "", "Acero al carbono", "Acero inoxidable 304", "Acero inoxidable 316",
         "Acero galvanizado", "Acero zincado", "Latón", "Cobre", "Aluminio",
-        "Titanio", "Zinc", "Nylon/Plástico", "Otro"
+        "Titanio", "Zinc", "Nylon/Plástico"
     };
     private static final String[] CABEZAS = {
         "", "Hexagonal", "Hexagonal hueco (Allen)", "Phillips", "Plana (ranura)",
-        "Pozidriv", "Torx", "Carruaje", "Cilíndrica", "Gota", "Ojo", "Remache", "Otro"
+        "Pozidriv", "Torx", "Carruaje", "Cilíndrica", "Gota", "Ojo", "Remache"
     };
     private static final String[] UNIDADES = {
-        "PZA", "KG", "BOLSA", "CAJA", "METRO", "PAQ", "Otro"
+        "PZA", "KG", "BOLSA", "CAJA", "METRO", "PAQ"
     };
 
-    /** Panel que contiene las especificaciones; se necesita para revalidar al cambiar unidades. */
     private JPanel especificacionesPanel;
 
-    /** Referencia al diálogo padre, usada para mostrar mensajes de error. */
     private final Component owner;
 
     // ── Constructor ──────────────────────────────────────────────────────────
@@ -96,22 +90,22 @@ class TornilloDialogUI {
 
         txtDescripcion.setRows(3);
 
-        // Etiquetas dinámicas
         lblDiametro = AppTheme.label("Diámetro (mm):");
         lblLongitud = AppTheme.label("Longitud (mm):");
         lblPaso     = AppTheme.label("Paso de rosca (mm):");
 
-        // Combos
         cmbCategoria    = buildCmbCategoria(tornilloService);
         cmbSistemaMedida = buildCmbSistemaMedida();
         cmbMaterial     = buildComboConOtro(MATERIALES);
         cmbCabeza       = buildComboConOtro(CABEZAS);
         cmbUnidad       = buildComboConOtro(UNIDADES);
 
-        // Stock inicial: solo editable al crear
         if (tornillo != null) {
+            txtCodigo.setEditable(false);
+            txtCodigo.setBackground(AppTheme.BG_DISABLED);
+            txtCodigo.setForeground(AppTheme.TEXT_DISABLED);
+
             txtStockInicial.setEditable(false);
-            // Forzamos un color de fondo grisáceo/deshabilitado para romper el "fondo estándar"
             txtStockInicial.setBackground(AppTheme.BG_DISABLED); 
             txtStockInicial.setForeground(AppTheme.TEXT_DISABLED);
         }
@@ -127,7 +121,7 @@ class TornilloDialogUI {
         p.setBorder(BorderFactory.createEmptyBorder(4, 4, 8, 4));
 
         p.add(sectionLabel("Identificación"));
-        p.add(buildIdentificacionPanel());
+        p.add(buildIdentificacionPanel(tornillo != null));
         p.add(Box.createVerticalStrut(12));
 
         p.add(sectionLabel("Especificaciones técnicas"));
@@ -147,11 +141,25 @@ class TornilloDialogUI {
 
     // ── Secciones del formulario ─────────────────────────────────────────────
 
-    private JPanel buildIdentificacionPanel() {
+    private JPanel buildIdentificacionPanel(boolean esEdicion) {
         JPanel p = sectionPanel();
         GridBagConstraints gbc = defaultGbc();
 
-        addRow(p, gbc, 0, "Código *:",   txtCodigo);
+        JPanel codigoContenedor = new JPanel(new java.awt.BorderLayout(6, 0));
+        codigoContenedor.setOpaque(false);
+        codigoContenedor.add(txtCodigo, java.awt.BorderLayout.CENTER);
+
+        JButton btnGenerar = AppTheme.secondaryButton("Generar");
+        btnGenerar.setToolTipText("Generar código sugerido según especificaciones actuales");
+        btnGenerar.addActionListener(e -> generarPropuestaCodigo());
+        
+        if (esEdicion) {
+            btnGenerar.setEnabled(false);
+        }
+        
+        codigoContenedor.add(btnGenerar, java.awt.BorderLayout.EAST);
+
+        addRow(p, gbc, 0, "Código *:",   codigoContenedor);
         addRow(p, gbc, 1, "Nombre *:",   txtNombre);
         addRow(p, gbc, 2, "Categoría:",  cmbCategoria);
 
@@ -167,10 +175,10 @@ class TornilloDialogUI {
         JPanel p = sectionPanel();
         GridBagConstraints gbc = defaultGbc();
 
-        addRow(p, gbc, 0, "Sistema de medida:", cmbSistemaMedida);
+        addRow(p, gbc, 0, "Sistema de medida*:", cmbSistemaMedida);
         addRow(p, gbc, 1, "Material:",           cmbMaterial);
         addRow(p, gbc, 2, "Tipo de cabeza:",      cmbCabeza);
-        addRow(p, gbc, 3, "Unidad de medida:",    cmbUnidad);
+        addRow(p, gbc, 3, "Unidad de medida*:",    cmbUnidad);
         addRow(p, gbc, 4, lblDiametro,            txtDiametro);
         addRow(p, gbc, 5, lblLongitud,            txtLongitud);
         addRow(p, gbc, 6, lblPaso,                txtPaso);
@@ -198,9 +206,7 @@ class TornilloDialogUI {
         JPanel p = sectionPanel();
         GridBagConstraints gbc = defaultGbc();
 
-        String lblStock = (tornillo == null)
-                ? "Cantidad en Stock *:"
-                : "Cantidad en Stock:";
+        String lblStock = "Cantidad en Stock:";
 
         addRow(p, gbc, 0, lblStock, txtStockInicial);
         addRow(p, gbc, 1, "Stock mínimo (alerta) *:", txtStockMin);
@@ -231,10 +237,6 @@ class TornilloDialogUI {
         return combo;
     }
 
-    /**
-     * Combo de sistema de medida con lógica reactiva:
-     * al cambiar a IMPERIAL actualiza las etiquetas de diámetro/longitud/paso.
-     */
     private JComboBox<String> buildCmbSistemaMedida() {
         JComboBox<String> combo = new JComboBox<>(new String[]{"MÉTRICO", "IMPERIAL"}) {
             @Override
@@ -243,30 +245,24 @@ class TornilloDialogUI {
                 if (anObject != null && lblDiametro != null) {
                     String texto = anObject.toString().toUpperCase();
                     if (texto.contains("IMP")) {
-                        // 1. Modificar etiquetas a formato Inglés/Imperial
                         lblDiametro.setText("Diámetro (pulg):");
                         lblLongitud.setText("Longitud (pulg):");
                         lblPaso.setText("Hilos / Rosca (TPI):");
                         
-                        // 🌟 2. CAMBIO AQUÍ: Actualizar los placeholders dinámicamente para Imperial
                         txtDiametro.putClientProperty("placeholder", "ej. 1/4 o 0.25");
                         txtLongitud.putClientProperty("placeholder", "ej. 2 o 1 1/2");
                         txtPaso.putClientProperty("placeholder", "ej. 20");
                     } else {
-                        // 1. Regresar etiquetas a formato Métrico
                         lblDiametro.setText("Diámetro (mm):");
                         lblLongitud.setText("Longitud (mm):");
                         lblPaso.setText("Paso de rosca (mm):");
                         
-                        // 🌟 2. CAMBIO AQUÍ: Restaurar los placeholders originales para Métrico
                         txtDiametro.putClientProperty("placeholder", "ej. 8.0");
                         txtLongitud.putClientProperty("placeholder", "ej. 30.0");
                         txtPaso.putClientProperty("placeholder", "ej. 1.25");
                     }
                     txtPaso.setEnabled(true);
                     
-                    // 🌟 3. CAMBIO AQUÍ: Forzar el repintado inmediato de los campos.
-                    // Si el campo está vacío, el nuevo placeholder aparecerá mágicamente en pantalla.
                     txtDiametro.repaint();
                     txtLongitud.repaint();
                     txtPaso.repaint();
@@ -284,15 +280,43 @@ class TornilloDialogUI {
 
     private JComboBox<String> buildComboConOtro(String[] opciones) {
         JComboBox<String> combo = new JComboBox<>(opciones);
-        configurarOpcionOtro(combo);
+        // configurarOpcionOtro(combo);
         aplicarEstiloPremiumCombo(combo);
         return combo;
+    }
+
+    private void generarPropuestaCodigo() {
+        String cabeza = (String) cmbCabeza.getSelectedItem();
+        String parteCabeza = "GEN";
+        if (cabeza != null && !cabeza.trim().isEmpty()) {
+            String limpio = cabeza.trim().toUpperCase();
+            parteCabeza = limpio.length() >= 3 ? limpio.substring(0, 3) : limpio;
+        }
+
+        String diametro = txtDiametro.getText().trim().toUpperCase();
+        String parteDiametro = diametro.isEmpty() ? "X" : diametro.replace("/", "").replace(" ", "");
+
+        String longitud = txtLongitud.getText().trim().toUpperCase();
+        String parteLongitud = longitud.isEmpty() ? "X" : longitud.replace("/", "").replace(" ", "");
+
+        String material = (String) cmbMaterial.getSelectedItem();
+        String parteMaterial = "GE";
+        if (material != null && !material.trim().isEmpty()) {
+            String limpio = material.trim().toUpperCase();
+            parteMaterial = limpio.length() >= 2 ? limpio.substring(0, 2) : limpio;
+        }
+
+        String codigoSugerido = "TOR-" + parteCabeza + "-M" + parteDiametro + "-" + parteMaterial + "-L" + parteLongitud;
+
+        txtCodigo.setText(codigoSugerido);
+        
+        txtCodigo.requestFocus();
     }
 
     // ── Helpers de estilo y layout ───────────────────────────────────────────
 
     void marcarError(JComponent campo, String mensaje) {
-        campo.setBorder(BORDER_ERROR);
+        marcarBordeError(campo);
         campo.requestFocus();
         campo.scrollRectToVisible(campo.getBounds());
         JOptionPane.showMessageDialog(owner, mensaje, "Campo inválido", JOptionPane.WARNING_MESSAGE);
@@ -303,7 +327,16 @@ class TornilloDialogUI {
             txtCodigo, txtNombre, txtDiametro, txtLongitud, txtPaso,
             txtPrecioCosto, txtPrecioVenta, txtStockInicial, txtStockMin, txtStockMax
         };
-        for (JComponent c : campos) if (c != null) c.setBorder(BORDER_NORMAL);
+        
+        for (JComponent c : campos) {
+        if (c != null) {
+            Border original = (Border) c.getClientProperty("bordeOriginal");
+            if (original != null) {
+                c.setBorder(original);
+                c.putClientProperty("bordeOriginal", null); 
+            }
+        }
+    }
     }
 
     void seleccionarCombo(JComboBox<String> combo, String valor) {
@@ -318,22 +351,22 @@ class TornilloDialogUI {
         combo.setSelectedItem(valor);
     }
 
-    private void configurarOpcionOtro(JComboBox<String> combo) {
-        combo.addActionListener(e -> {
-            if ("Otro".equals(combo.getSelectedItem())) {
-                String nuevoValor = JOptionPane.showInputDialog(owner,
-                        "Escriba el valor personalizado:",
-                        "Agregar nueva opción", JOptionPane.QUESTION_MESSAGE);
-                if (nuevoValor != null && !nuevoValor.trim().isBlank()) {
-                    String limpio = nuevoValor.trim();
-                    combo.addItem(limpio);
-                    combo.setSelectedItem(limpio);
-                } else {
-                    combo.setSelectedIndex(0);
-                }
-            }
-        });
-    }
+    // private void configurarOpcionOtro(JComboBox<String> combo) {
+    //     combo.addActionListener(e -> {
+    //         if ("Otro".equals(combo.getSelectedItem())) {
+    //             String nuevoValor = JOptionPane.showInputDialog(owner,
+    //                     "Escriba el valor personalizado:",
+    //                     "Agregar nueva opción", JOptionPane.QUESTION_MESSAGE);
+    //             if (nuevoValor != null && !nuevoValor.trim().isBlank()) {
+    //                 String limpio = nuevoValor.trim();
+    //                 combo.addItem(limpio);
+    //                 combo.setSelectedItem(limpio);
+    //             } else {
+    //                 combo.setSelectedIndex(0);
+    //             }
+    //         }
+    //     });
+    // }
 
     private void aplicarEstiloPremiumCombo(JComboBox<?> combo) {
         combo.setUI(new javax.swing.plaf.basic.BasicComboBoxUI() {
@@ -396,7 +429,12 @@ class TornilloDialogUI {
     }
 
     void marcarBordeError(JComponent campo) {
-        campo.setBorder(BORDER_ERROR);
+        if (campo != null) {
+            if (campo.getClientProperty("bordeOriginal") == null) {
+                campo.putClientProperty("bordeOriginal", campo.getBorder());
+            }
+            campo.setBorder(BORDER_ERROR);
+        }
     }
 
     Component getOwner() {
@@ -444,5 +482,19 @@ class TornilloDialogUI {
         c.setId(0);
         c.setNombre("— Sin categoría —");
         return c;
+    }
+
+    boolean isFormularioModificado(Tornillo original) {
+        if (original == null) {
+            return !txtCodigo.getText().trim().isEmpty() 
+                || !txtNombre.getText().trim().isEmpty()
+                || !txtDescripcion.getText().trim().isEmpty()
+                || (!txtPrecioCosto.getText().equals("0.00") && !txtPrecioCosto.getText().isEmpty())
+                || (!txtPrecioVenta.getText().equals("0.00") && !txtPrecioVenta.getText().isEmpty());
+        }
+        
+        return !txtNombre.getText().trim().equals(original.getNombre())
+            || !txtDescripcion.getText().trim().equals(original.getDescripcion() != null ? original.getDescripcion() : "")
+            || !txtUbicacion.getText().trim().equals(original.getUbicacion() != null ? original.getUbicacion() : "");
     }
 }

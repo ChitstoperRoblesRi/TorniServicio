@@ -44,7 +44,7 @@ INSERT INTO categorias (nombre, descripcion) VALUES
     ('Madera', 'Tornillos diseñados para fijación en madera maciza, aglomerado o MDF'),
     ('Prisionero / sin cabeza', 'Tornillos sin cabeza usados para fijación de piezas en ejes o cavidades'),
     ('Estructural / de alta resistencia', 'Tornillos de alta resistencia para uniones estructurales y cargas elevadas'),
-    ('Especial / industrial', 'Tornillos para aplicaciones industriales específicas o de uso poco común'),
+    ('Especial / industrial', 'Tornillos para aplicaciones industriales específicas o de uso poco común')
 ON CONFLICT DO NOTHING;
 
 -- Proveedores

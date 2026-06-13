@@ -304,7 +304,7 @@ public class EntradasPanel extends JPanel {
         cmbTornillo.addActionListener(e -> {
             Tornillo seleccionado = (Tornillo) cmbTornillo.getSelectedItem();
             if (seleccionado != null && seleccionado.getPrecioCosto() != null) {
-                txtPrecio.setText(seleccionado.getPrecioCosto().toString());
+                txtPrecio.setText(seleccionado.getPrecioCosto().toPlainString());
             } else {
                 txtPrecio.setText("0.00");
             }
