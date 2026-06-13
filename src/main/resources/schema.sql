@@ -45,7 +45,6 @@ INSERT INTO categorias (nombre, descripcion) VALUES
     ('Prisionero / sin cabeza', 'Tornillos sin cabeza usados para fijación de piezas en ejes o cavidades'),
     ('Estructural / de alta resistencia', 'Tornillos de alta resistencia para uniones estructurales y cargas elevadas'),
     ('Especial / industrial', 'Tornillos para aplicaciones industriales específicas o de uso poco común'),
-    ('Otro', 'Categoría general para tornillos que no encajan en las categorías anteriores')
 ON CONFLICT DO NOTHING;
 
 -- Proveedores
@@ -69,7 +68,7 @@ CREATE TABLE IF NOT EXISTS tornillos (
     categoria_id INT REFERENCES categorias(id),
     proveedor_id INT REFERENCES proveedores(id),
     material VARCHAR(100),
-    sistema_medida VARCHAR(10) DEFAULT 'METRICO', -- <-- NUEVA COLUMNA
+    sistema_medida VARCHAR(10) DEFAULT 'METRICO',
     diametro_mm DECIMAL(8,2),
     longitud_mm DECIMAL(8,2),
     paso_rosca DECIMAL(6,3),

@@ -48,6 +48,7 @@ public class AppTheme {
     public static final Color BG_CARD        = new Color(0x152238); // tarjetas
     public static final Color BG_CARD_HOVER  = new Color(0x1A2D48); // hover tarjeta
     public static final Color SIDEBAR_BG     = new Color(0x0A1018); // sidebar oscuro
+    public static final Color BG_DISABLED       = new Color(0x0B111C); // Más oscuro que el contenedor, da efecto "hundido"
 
     // Acento: azul marino corporativo
     public static final Color ACCENT         = new Color(0x1B3A5C);
@@ -75,11 +76,13 @@ public class AppTheme {
     public static final Color TEXT_SECONDARY = new Color(0x6A7E99); // gris azulado
     public static final Color TEXT_MUTED     = new Color(0x3A4A5C); // muy apagado
     public static final Color TEXT_HEADING   = new Color(0xD4C9B0); // titulos
+    public static final Color TEXT_DISABLED     = TEXT_MUTED;          // Reutiliza tu gris azulado apagado
 
     // Bordes
     public static final Color BORDER         = new Color(0x1B3A5C); // borde estándar
     public static final Color BORDER_SUBTLE  = new Color(0x152238); // borde sutil
     public static final Color BORDER_ACTIVE  = new Color(0xC9A84C); // borde activo/dorado
+    public static final Color BORDER_DISABLED   = new Color(0x122236); // Borde de muy bajo contraste
 
     // ── Fuentes ───────────────────────────────────────────────
     public static final Font FONT_TITLE   = new Font("Segoe UI", Font.BOLD,   22);
@@ -330,6 +333,10 @@ public class AppTheme {
             @Override
             protected void paintComponent(Graphics g) {
                 super.paintComponent(g);
+
+                // 🌟 CAMBIO AQUÍ: Leer el placeholder de manera dinámica desde las propiedades del objeto
+                String currentPlaceholder = (String) getClientProperty("placeholder");
+
                 if (getText().isEmpty() && placeholder != null && !placeholder.isEmpty()) {
                     Graphics2D g2 = (Graphics2D) g.create();
                     g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
@@ -339,11 +346,15 @@ public class AppTheme {
                     FontMetrics fm = g2.getFontMetrics();
                     int x = insets.left;
                     int y = (getHeight() - fm.getHeight()) / 2 + fm.getAscent();
-                    g2.drawString(placeholder, x, y);
+                    // 🌟 Dibujar el texto actual adaptativo
+                    g2.drawString(currentPlaceholder, x, y);
                     g2.dispose();
                 }
             }
         };
+
+        // 🌟 CAMBIO AQUÍ: Asignar el placeholder inicial al crear el componente
+        f.putClientProperty("placeholder", placeholder);
         f.setBackground(BG_CARD);
         f.setForeground(TEXT_PRIMARY);
         f.setCaretColor(GOLD);
