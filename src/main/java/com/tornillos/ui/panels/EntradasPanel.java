@@ -37,11 +37,9 @@ import javax.swing.table.DefaultTableModel;
 import javax.swing.table.TableCellRenderer;
 
 import com.tornillos.config.AppTheme;
-import com.tornillos.dao.EntradaDAO;
-import com.tornillos.dao.TornilloDAO;
 import com.tornillos.model.Entrada;
 import com.tornillos.model.Tornillo;
-import com.tornillos.service.AlertaService;
+import com.tornillos.service.EntradaService;
 import com.tornillos.service.SessionManager;
 import com.tornillos.ui.MainFrame;
 import com.tornillos.util.FolioGenerator;
@@ -54,9 +52,8 @@ public class EntradasPanel extends JPanel {
     private JLabel lblConteo;
     private SwingWorker<?, ?> currentWorker;
 
-    private final EntradaDAO entradaDAO = new EntradaDAO();
-    private final TornilloDAO tornilloDAO = new TornilloDAO();
-    private final AlertaService alertaService = new AlertaService();
+    // Cambiado: El panel ahora depende estrictamente de su Capa de Servicio dedicada
+    private final EntradaService entradaService = new EntradaService();
 
     public EntradasPanel(MainFrame frame) {
         this.mainFrame = frame;
@@ -175,7 +172,6 @@ public class EntradasPanel extends JPanel {
         table.getColumnModel().getColumn(0).setMinWidth(0);
         table.getColumnModel().getColumn(0).setMaxWidth(0);
 
-        // Se inicializa el JPopupMenu de forma local pero con retorno
         final JPopupMenu menuContextual = buildContextMenu();
 
         table.addMouseListener(new MouseAdapter() {
@@ -192,8 +188,6 @@ public class EntradasPanel extends JPanel {
             private void evaluarClicContextual(MouseEvent e) {
                 if (e.isPopupTrigger() || SwingUtilities.isRightMouseButton(e)) {
                     int row = table.rowAtPoint(e.getPoint());
-                    
-                    // CORRECCIÓN: Desplegar el menú únicamente si golpea un registro real de la tabla
                     if (row >= 0 && row < table.getRowCount()) {
                         table.setRowSelectionInterval(row, row);
                         menuContextual.show(table, e.getX(), e.getY());
@@ -215,8 +209,6 @@ public class EntradasPanel extends JPanel {
         if (SessionManager.getInstance().isGerente()) {
             popup.add(itemEliminar);
         }
-        
-        // CORRECCIÓN: Removida la instrucción table.setComponentPopupMenu(popup) de aquí adentro.
         return popup;
     }
 
@@ -238,8 +230,8 @@ public class EntradasPanel extends JPanel {
                 "Confirmar eliminacion", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
         if (opt == JOptionPane.YES_OPTION) {
             try {
-                entradaDAO.eliminar((int) tableModel.getValueAt(row, 0));
-                alertaService.verificarAlertas();
+                // Cambiado: Ahora la UI llama al servicio para orquestar la eliminación y actualización
+                entradaService.eliminarEntrada((int) tableModel.getValueAt(row, 0));
                 mainFrame.actualizarBadgeAlertas();
                 refresh();
                 JOptionPane.showMessageDialog(this, "Entrada eliminada y stock revertido.");
@@ -265,7 +257,8 @@ public class EntradasPanel extends JPanel {
 
         List<Tornillo> tornillos;
         try {
-            tornillos = tornilloDAO.listarTodos();
+            // Cambiado: Se le solicitan los tornillos de inventario al Servicio
+            tornillos = entradaService.obtenerCatalogoTornillos();
         } catch (Exception e) {
             JOptionPane.showMessageDialog(this, "Error cargando datos: " + e.getMessage());
             return;
@@ -276,7 +269,6 @@ public class EntradasPanel extends JPanel {
         cmbTornillo.setBackground(AppTheme.BG_CARD_HOVER);
         cmbTornillo.setForeground(AppTheme.TEXT_PRIMARY);
 
-        // Sincronización estética para el combo de búsqueda predictiva (Conserva la escritura libre)
         cmbTornillo.setUI(new javax.swing.plaf.basic.BasicComboBoxUI() {
             @Override
             protected JButton createArrowButton() {
@@ -365,11 +357,11 @@ public class EntradasPanel extends JPanel {
                 entrada.setNumeroFactura(txtFactura.getText().trim());
                 entrada.setObservaciones(txtObs.getText().trim());
 
-                entradaDAO.registrar(entrada);
+                // Cambiado: Invocación delegada limpiamente a través de EntradaService
+                entradaService.registrarEntrada(entrada);
+                
                 dlg.dispose();
                 refresh();
-
-                alertaService.verificarAlertas();
                 mainFrame.actualizarBadgeAlertas();
 
                 JOptionPane.showMessageDialog(this,
@@ -426,14 +418,19 @@ public class EntradasPanel extends JPanel {
                 String termino = txtBuscar.getText().trim();
                 String desde = txtDesde.getText().trim().isEmpty() ? null : txtDesde.getText().trim();
                 String hasta = txtHasta.getText().trim().isEmpty() ? null : txtHasta.getText().trim();
-                return entradaDAO.buscar(termino, desde, hasta);
+                
+                // Cambiado: Consumo seguro a través de la Capa de Servicios
+                return entradaService.buscarEntradas(termino, desde, hasta);
             }
 
             @Override
             protected void done() {
                 try {
-                    poblarTabla(get());
+                    if (!isCancelled()) {
+                        poblarTabla(get());
+                    }
                 } catch (Exception ex) {
+                    // Control preventivo de flujo asíncrono
                 }
             }
         };

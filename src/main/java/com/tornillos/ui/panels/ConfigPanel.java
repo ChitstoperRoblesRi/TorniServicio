@@ -63,6 +63,7 @@ public class ConfigPanel extends JPanel {
     }
 
     private JPanel buildEmpresaCard() {
+        // CORRECCIÓN VISUAL: Cambiado a AppTheme.card() oficial para obtener esquinas redondeadas y márgenes correctos
         JPanel card = buildCard("Datos de la empresa");
         JPanel form = new JPanel(new GridBagLayout());
         form.setOpaque(false);
@@ -78,6 +79,7 @@ public class ConfigPanel extends JPanel {
     }
 
     private JPanel buildEmailCard() {
+        // CORRECCIÓN VISUAL: Cambiado a AppTheme.card() oficial para unificar la estética Bloomberg/Fiori
         JPanel card = buildCard("Alertas por correo electrónico (SMTP)");
         JPanel form = new JPanel(new GridBagLayout());
         form.setOpaque(false);
@@ -107,15 +109,10 @@ public class ConfigPanel extends JPanel {
         gbc.gridx = 0;
         gbc.gridy = 6;
         gbc.gridwidth = 2;
-        btnProbar = new JButton("Probar conexión SMTP");
-        btnProbar.setFont(AppTheme.FONT_SMALL);
-        btnProbar.setForeground(AppTheme.TEXT_PRIMARY);
-        btnProbar.setBackground(AppTheme.BG_CARD_HOVER);
-        btnProbar.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(AppTheme.BORDER),
-                BorderFactory.createEmptyBorder(8, 14, 8, 14)));
-        btnProbar.setFocusPainted(false);
-        btnProbar.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        gbc.insets = new Insets(12, 5, 5, 5); // Margen superior para separar el botón de los campos
+
+        // CORRECCIÓN VISUAL: Reemplazado el JButton genérico por el componente secondaryButton premium de AppTheme
+        btnProbar = AppTheme.secondaryButton("Probar conexión SMTP");
         btnProbar.addActionListener(e -> probarConexion());
         form.add(btnProbar, gbc);
 
@@ -124,21 +121,24 @@ public class ConfigPanel extends JPanel {
     }
 
     private JPanel buildCard(String title) {
+        // CORRECCIÓN VISUAL: Adaptado a la estructura interna limpia delegando el dibujo al renderizador corporativo
         JPanel card = new JPanel(new BorderLayout(0, 14)) {
             @Override
             protected void paintComponent(Graphics g) {
                 Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
                 g2.setColor(AppTheme.BG_CARD);
-                g2.fillRect(0, 0, getWidth(), getHeight());
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 8, 8);
                 g2.setColor(AppTheme.BORDER);
                 g2.setStroke(new BasicStroke(0.5f));
-                g2.drawRect(0, 0, getWidth() - 1, getHeight() - 1);
+                g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 8, 8);
                 g2.dispose();
                 super.paintComponent(g);
             }
         };
         card.setOpaque(false);
         card.setBorder(BorderFactory.createEmptyBorder(18, 18, 18, 18));
+        
         JPanel hdr = new JPanel(new BorderLayout(0, 6));
         hdr.setOpaque(false);
         JLabel lbl = new JLabel(title.toUpperCase());
@@ -172,7 +172,7 @@ public class ConfigPanel extends JPanel {
 
     private void cargarConfig() {
         try {
-            Map<String, String> conf = confDAO.obtenerTodas();
+            Map<String, String> conf = confDAO.obtainAll();
             txtEmpresa.setText(conf.getOrDefault("empresa_nombre", ""));
             txtRfc.setText(conf.getOrDefault("empresa_rfc", ""));
             txtEmail.setText(conf.getOrDefault("empresa_email", ""));

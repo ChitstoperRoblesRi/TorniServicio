@@ -1,8 +1,8 @@
 package com.tornillos.ui.panels;
 
 import com.tornillos.config.AppTheme;
-import com.tornillos.dao.UsuarioDAO;
 import com.tornillos.model.Usuario;
+import com.tornillos.service.UsuarioService;
 import com.tornillos.service.SessionManager;
 
 import javax.swing.*;
@@ -16,7 +16,9 @@ public class UsuariosPanel extends JPanel {
     private DefaultTableModel tableModel;
     private JTextField txtBuscar;
     private JLabel lblConteo;
-    private final UsuarioDAO usuarioDAO = new UsuarioDAO();
+    
+    // Cambiado: El panel ahora depende estrictamente de su Capa de Servicio dedicada
+    private final UsuarioService usuarioService = new UsuarioService();
 
     public UsuariosPanel() {
         setBackground(AppTheme.BG_SURFACE);
@@ -74,7 +76,6 @@ public class UsuariosPanel extends JPanel {
         JPanel p = new JPanel(new BorderLayout(0, 10));
         p.setOpaque(false);
 
-        // Barra de busqueda
         JPanel bar = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
         bar.setOpaque(false);
         txtBuscar = AppTheme.styledField("Buscar por nombre, usuario o email...");
@@ -97,8 +98,7 @@ public class UsuariosPanel extends JPanel {
         bar.add(btnLimpiar);
         p.add(bar, BorderLayout.NORTH);
 
-        // Tabla
-        String[] cols = { "ID", "Username", "Nombre", "Apellido", "Email", "Rol", "Estado", "Ultima sesion" };
+        String[] cols = { "ID", "Username", "Nombre", "Apellido", "Email", "Rol", "Estado", "Última sesión" };
         tableModel = new DefaultTableModel(cols, 0) {
             @Override
             public boolean isCellEditable(int r, int c) {
@@ -132,7 +132,6 @@ public class UsuariosPanel extends JPanel {
         table.getColumnModel().getColumn(0).setMinWidth(0);
         table.getColumnModel().getColumn(0).setMaxWidth(0);
 
-        // Inicializar el JPopupMenu dinámico con retorno controlado
         final JPopupMenu menuContextual = buildContextMenu();
 
         table.addMouseListener(new MouseAdapter() {
@@ -146,20 +145,13 @@ public class UsuariosPanel extends JPanel {
             }
 
             @Override
-            public void mousePressed(MouseEvent e) {
-                evaluarClicContextual(e);
-            }
-
+            public void mousePressed(MouseEvent e) { evaluarClicContextual(e); }
             @Override
-            public void mouseReleased(MouseEvent e) {
-                evaluarClicContextual(e);
-            }
+            public void mouseReleased(MouseEvent e) { evaluarClicContextual(e); }
 
             private void evaluarClicContextual(MouseEvent e) {
                 if (e.isPopupTrigger() || SwingUtilities.isRightMouseButton(e)) {
                     int row = table.rowAtPoint(e.getPoint());
-                    
-                    // CORRECCIÓN: Validar posición del puntero para evitar abrir popup en la zona vacía
                     if (row >= 0 && row < table.getRowCount()) {
                         table.setRowSelectionInterval(row, row);
                         menuContextual.show(table, e.getX(), e.getY());
@@ -177,29 +169,25 @@ public class UsuariosPanel extends JPanel {
     private JPopupMenu buildContextMenu() {
         JPopupMenu popup = AppTheme.darkPopup();
         JMenuItem itemEditar = AppTheme.darkMenuItem("Editar usuario", null);
-        JMenuItem itemPassword = AppTheme.darkMenuItem("Cambiar contrasena", null);
+        JMenuItem itemPassword = AppTheme.darkMenuItem("Cambiar contraseña", null);
         JMenuItem itemInhabilitar = AppTheme.darkMenuItem("Inhabilitar usuario", null);
         JMenuItem itemHabilitar = AppTheme.darkMenuItem("Habilitar usuario", null);
         
         itemEditar.addActionListener(e -> {
             int r = table.getSelectedRow();
-            if (r >= 0)
-                abrirDialogoPorFila(r);
+            if (r >= 0) abrirDialogoPorFila(r);
         });
         itemPassword.addActionListener(e -> {
             int r = table.getSelectedRow();
-            if (r >= 0)
-                cambiarPassword((int) tableModel.getValueAt(r, 0));
+            if (r >= 0) cambiarPassword((int) tableModel.getValueAt(r, 0));
         });
         itemInhabilitar.addActionListener(e -> {
             int r = table.getSelectedRow();
-            if (r >= 0)
-                cambiarEstado((int) tableModel.getValueAt(r, 0), false);
+            if (r >= 0) cambiarEstado((int) tableModel.getValueAt(r, 0), false);
         });
         itemHabilitar.addActionListener(e -> {
             int r = table.getSelectedRow();
-            if (r >= 0)
-                cambiarEstado((int) tableModel.getValueAt(r, 0), true);
+            if (r >= 0) cambiarEstado((int) tableModel.getValueAt(r, 0), true);
         });
         
         popup.add(itemEditar);
@@ -208,27 +196,24 @@ public class UsuariosPanel extends JPanel {
         popup.add(AppTheme.darkSeparator());
         popup.add(itemInhabilitar);
         popup.add(itemHabilitar);
-        
-        // CORRECCIÓN: Removido el llamado table.setComponentPopupMenu(popup) global.
         return popup;
     }
 
     private void buscar() {
         String t = txtBuscar.getText().trim();
-        if (t.isEmpty()) {
-            refresh();
-            return;
-        }
         SwingWorker<List<Usuario>, Void> w = new SwingWorker<>() {
             @Override
             protected List<Usuario> doInBackground() throws Exception {
-                return usuarioDAO.buscar(t);
+                // Cambiado: Invocación delegada a través del servicio
+                return usuarioService.buscarUsuarios(t);
             }
 
             @Override
             protected void done() {
                 try {
-                    poblarTabla(get());
+                    if (!isCancelled()) {
+                        poblarTabla(get());
+                    }
                 } catch (Exception ex) { /* ignored */ }
             }
         };
@@ -238,14 +223,12 @@ public class UsuariosPanel extends JPanel {
     private void cambiarEstado(int id, boolean habilitar) {
         String accion = habilitar ? "habilitar" : "inhabilitar";
         int opt = JOptionPane.showConfirmDialog(this,
-                "Deseas " + accion + " este usuario?", "Confirmar",
+                "¿Deseas " + accion + " este usuario?", "Confirmar",
                 JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE);
         if (opt == JOptionPane.YES_OPTION) {
             try {
-                if (habilitar)
-                    usuarioDAO.habilitar(id);
-                else
-                    usuarioDAO.inhabilitar(id);
+                // Cambiado: El servicio procesa el cambio de estado operativo
+                usuarioService.cambiarEstadoUsuario(id, habilitar);
                 refresh();
             } catch (Exception ex) {
                 JOptionPane.showMessageDialog(this, "Error: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
@@ -277,7 +260,6 @@ public class UsuariosPanel extends JPanel {
             txtApellido.setText(usuario.getApellido());
             txtEmail.setText(usuario.getEmail());
             txtUsername.setText(usuario.getUsername());
-            
             txtUsername.setEditable(false);
             txtUsername.setForeground(AppTheme.TEXT_MUTED);
         }
@@ -292,7 +274,7 @@ public class UsuariosPanel extends JPanel {
         addRow(form, gbc, 2, "Email:", txtEmail);
         addRow(form, gbc, 3, "Username:", txtUsername);
         if (usuario == null)
-            addRow(form, gbc, 4, "Contrasena:", txtPass);
+            addRow(form, gbc, 4, "Contraseña:", txtPass);
         addRow(form, gbc, usuario == null ? 5 : 4, "Rol:", cmbRol);
 
         JPanel btns = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
@@ -310,9 +292,9 @@ public class UsuariosPanel extends JPanel {
                     u.setUsername(txtUsername.getText().trim());
                     u.setRolId(cmbRol.getSelectedIndex() == 1 ? 1 : 2);
                     String pass = new String(txtPass.getPassword());
-                    if (pass.isBlank())
-                        throw new IllegalArgumentException("La contraseña es obligatoria");
-                    usuarioDAO.crear(u, pass);
+                    
+                    // Cambiado: Registro delegado al servicio corporativo
+                    usuarioService.registrarUsuario(u, pass);
                 } else {
                     Usuario u = new Usuario();
                     u.setId(usuario.getId());
@@ -321,10 +303,10 @@ public class UsuariosPanel extends JPanel {
                     u.setEmail(txtEmail.getText().trim());
                     u.setUsername(txtUsername.getText().trim());
                     u.setRolId(cmbRol.getSelectedIndex() == 1 ? 1 : 2);
-                    
                     u.setActivo(usuario.isActivo());
                     
-                    usuarioDAO.actualizar(u);
+                    // Cambiado: Modificación delegada al servicio
+                    usuarioService.actualizarUsuario(u);
                 }
                 dlg.dispose();
                 refresh();
@@ -334,22 +316,16 @@ public class UsuariosPanel extends JPanel {
         });
         btns.add(btnCancel);
         btns.add(btnGuardar);
-        gbc.gridx = 0;
-        gbc.gridy = 7;
-        gbc.gridwidth = 2;
+        gbc.gridx = 0; gbc.gridy = 7; gbc.gridwidth = 2;
         form.add(btns, gbc);
         dlg.add(form);
         dlg.setVisible(true);
     }
 
     private void addRow(JPanel p, GridBagConstraints gbc, int row, String label, JComponent field) {
-        gbc.gridx = 0;
-        gbc.gridy = row;
-        gbc.gridwidth = 1;
-        gbc.weightx = 0.35;
+        gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 1; gbc.weightx = 0.35;
         p.add(AppTheme.label(label), gbc);
-        gbc.gridx = 1;
-        gbc.weightx = 0.65;
+        gbc.gridx = 1; gbc.weightx = 0.65;
         p.add(field, gbc);
     }
 
@@ -374,18 +350,16 @@ public class UsuariosPanel extends JPanel {
         JPasswordField pf2 = AppTheme.styledPasswordField();
         JPanel p = new JPanel(new GridLayout(4, 1, 0, 8));
         p.setBackground(AppTheme.BG_CARD);
-        p.add(AppTheme.label("Nueva contrasena:"));
+        p.add(AppTheme.label("Nueva contraseña:"));
         p.add(pf1);
-        p.add(AppTheme.label("Confirmar contrasena:"));
+        p.add(AppTheme.label("Confirmar contraseña:"));
         p.add(pf2);
-        int res = JOptionPane.showConfirmDialog(this, p,
-                "Cambiar Contrasena", JOptionPane.OK_CANCEL_OPTION);
+        int res = JOptionPane.showConfirmDialog(this, p, "Cambiar Contraseña", JOptionPane.OK_CANCEL_OPTION);
         if (res == JOptionPane.OK_OPTION) {
             String p1 = new String(pf1.getPassword());
             String p2 = new String(pf2.getPassword());
             if (!p1.equals(p2)) {
-                JOptionPane.showMessageDialog(this, "Las contraseñas no coinciden.", "Error",
-                        JOptionPane.ERROR_MESSAGE);
+                JOptionPane.showMessageDialog(this, "Las contraseñas no coinciden.", "Error", JOptionPane.ERROR_MESSAGE);
                 return;
             }
             if (p1.length() < 6) {
@@ -393,8 +367,9 @@ public class UsuariosPanel extends JPanel {
                 return;
             }
             try {
-                usuarioDAO.cambiarPassword(userId, p1);
-                JOptionPane.showMessageDialog(this, "Contrasena actualizada correctamente.");
+                // Cambiado: Redefinición segura a través del servicio
+                usuarioService.redefinirPassword(userId, p1);
+                JOptionPane.showMessageDialog(this, "Contraseña actualizada correctamente.");
             } catch (Exception ex) {
                 JOptionPane.showMessageDialog(this, "Error: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
             }
@@ -418,13 +393,16 @@ public class UsuariosPanel extends JPanel {
         SwingWorker<List<Usuario>, Void> w = new SwingWorker<>() {
             @Override
             protected List<Usuario> doInBackground() throws Exception {
-                return usuarioDAO.listarTodos();
+                // Cambiado: Consumo indirecto de persistencia
+                return usuarioService.obtenerTodosLosUsuarios();
             }
 
             @Override
             protected void done() {
                 try {
-                    poblarTabla(get());
+                    if (!isCancelled()) {
+                        poblarTabla(get());
+                    }
                 } catch (Exception ex) { /* ignored */ }
             }
         };

@@ -4,7 +4,6 @@ import com.tornillos.config.DatabaseConfig;
 import com.tornillos.model.Usuario;
 
 import java.sql.*;
-//import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -61,7 +60,7 @@ public class UsuarioDAO {
             ps.setString(1, u.getNombre());
             ps.setString(2, u.getApellido());
             ps.setString(3, u.getEmail());
-            ps.setString(4, u.getUsername()); // Añadido por si también editas el username
+            ps.setString(4, u.getUsername());
             ps.setInt(5, u.getRolId());
             ps.setInt(6, u.getId());
             ps.executeUpdate();
@@ -98,24 +97,24 @@ public class UsuarioDAO {
     }
 
     public void inhabilitar(int id) throws SQLException {
-        try (PreparedStatement ps = DatabaseConfig.getConnection()
-                .prepareStatement("UPDATE usuarios SET activo=false WHERE id=?")) {
+        String sql = "UPDATE usuarios SET activo=false WHERE id=?";
+        try (PreparedStatement ps = DatabaseConfig.getConnection().prepareStatement(sql)) {
             ps.setInt(1, id);
             ps.executeUpdate();
         }
     }
 
     public void habilitar(int id) throws SQLException {
-        try (PreparedStatement ps = DatabaseConfig.getConnection()
-                .prepareStatement("UPDATE usuarios SET activo=true WHERE id=?")) {
+        String sql = "UPDATE usuarios SET activo=true WHERE id=?";
+        try (PreparedStatement ps = DatabaseConfig.getConnection().prepareStatement(sql)) {
             ps.setInt(1, id);
             ps.executeUpdate();
         }
     }
 
     private void actualizarUltimaSesion(int id) throws SQLException {
-        try (PreparedStatement ps = DatabaseConfig.getConnection()
-                .prepareStatement("UPDATE usuarios SET ultima_sesion=NOW() WHERE id=?")) {
+        String sql = "UPDATE usuarios SET ultima_sesion=NOW() WHERE id=?";
+        try (PreparedStatement ps = DatabaseConfig.getConnection().prepareStatement(sql)) {
             ps.setInt(1, id);
             ps.executeUpdate();
         }
@@ -141,11 +140,6 @@ public class UsuarioDAO {
     }
 
     public void eliminar(int id) throws SQLException {
-        try (PreparedStatement ps = DatabaseConfig.getConnection()
-                .prepareStatement("UPDATE usuarios SET activo=false WHERE id=?")) {
-            ps.setInt(1, id);
-            ps.executeUpdate();
-        }
+        inhabilitar(id);
     }
-
 }

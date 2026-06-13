@@ -1,8 +1,8 @@
 package com.tornillos.ui.panels;
 
 import com.tornillos.config.AppTheme;
-import com.tornillos.dao.AlertaDAO;
 import com.tornillos.model.Alerta;
+import com.tornillos.service.AlertaService;
 import com.tornillos.service.SessionManager;
 import com.tornillos.ui.MainFrame;
 
@@ -19,11 +19,12 @@ public class AlertasPanel extends JPanel {
     private JTextField txtBuscar;
     private JLabel lblConteo;
     private SwingWorker<?, ?> currentWorker;
-    private final AlertaDAO alertaDAO = new AlertaDAO();
+    
+    private final AlertaService alertaService = new AlertaService();
 
     public AlertasPanel(MainFrame frame) {
         this.mainFrame = frame;
-        setBackground(AppTheme.BG_SURFACE);
+        setBackground(AppTheme.BG_SURFACE); 
         setLayout(new BorderLayout());
         buildUI();
     }
@@ -97,43 +98,43 @@ public class AlertasPanel extends JPanel {
         bar.add(btnLimpiar);
         p.add(bar, BorderLayout.NORTH);
 
-        String[] cols = { "ID", "Tipo", "Tornillo", "Codigo", "Mensaje", "Fecha" };
+        String[] cols = { "ID", "Tipo", "Tornillo", "Código", "Mensaje", "Fecha" };
         tableModel = new DefaultTableModel(cols, 0) {
             @Override
             public boolean isCellEditable(int r, int c) {
                 return false;
             }
         };
+
         table = new JTable(tableModel) {
             @Override
             public Component prepareRenderer(TableCellRenderer r, int row, int col) {
                 Component c = super.prepareRenderer(r, row, col);
                 Object tipo = getValueAt(row, 1);
-                if (!isRowSelected(row)) {
-                    c.setBackground(row % 2 == 0 ? AppTheme.BG_CARD : AppTheme.BG_SURFACE);
-                    if (tipo != null) {
-                        String t = tipo.toString();
-                        if ("SIN_STOCK".equals(t))
-                            c.setForeground(AppTheme.DANGER_TEXT);
-                        else if ("STOCK_CRITICO".equals(t))
-                            c.setForeground(AppTheme.WARNING_TEXT);
-                        else if ("STOCK_BAJO".equals(t))
-                            c.setForeground(AppTheme.WARNING_TEXT);
-                        else
-                            c.setForeground(AppTheme.TEXT_PRIMARY);
+                
+                if (!isRowSelected(row) && tipo != null) {
+                    String t = tipo.toString();
+                    if ("SIN_STOCK".equals(t)) {
+                        c.setForeground(AppTheme.DANGER_TEXT);
+                    } else if ("STOCK_CRITICO".equals(t) || "STOCK_BAJO".equals(t)) {
+                        c.setForeground(AppTheme.WARNING_TEXT);
                     }
-                } else {
-                    c.setBackground(AppTheme.ACCENT);
-                    c.setForeground(AppTheme.GOLD_LIGHT);
                 }
                 return c;
             }
         };
+        
         AppTheme.styleTable(table);
+        
         table.getColumnModel().getColumn(0).setMinWidth(0);
         table.getColumnModel().getColumn(0).setMaxWidth(0);
 
-        // Inicializar JPopupMenu local con retorno controlado
+        table.getColumnModel().getColumn(1).setPreferredWidth(100);
+        table.getColumnModel().getColumn(2).setPreferredWidth(180);
+        table.getColumnModel().getColumn(3).setPreferredWidth(110);
+        table.getColumnModel().getColumn(4).setPreferredWidth(320);
+        table.getColumnModel().getColumn(5).setPreferredWidth(120);
+
         final JPopupMenu menuContextual = buildContextMenu();
 
         table.addMouseListener(new MouseAdapter() {
@@ -150,8 +151,6 @@ public class AlertasPanel extends JPanel {
             private void evaluarClicContextual(MouseEvent e) {
                 if (e.isPopupTrigger() || SwingUtilities.isRightMouseButton(e)) {
                     int row = table.rowAtPoint(e.getPoint());
-                    
-                    // CORRECCIÓN: Desplegar el menú únicamente si golpea un registro real de la tabla
                     if (row >= 0 && row < table.getRowCount()) {
                         table.setRowSelectionInterval(row, row);
                         menuContextual.show(table, e.getX(), e.getY());
@@ -168,13 +167,11 @@ public class AlertasPanel extends JPanel {
 
     private JPopupMenu buildContextMenu() {
         JPopupMenu popup = AppTheme.darkPopup();
-        JMenuItem itemEliminar = AppTheme.darkMenuItem("Eliminar alerta", null);
+        JMenuItem itemEliminar = AppTheme.darkMenuItem("Eliminar alerta", AppTheme.DANGER_TEXT);
         itemEliminar.addActionListener(e -> eliminarSeleccionada());
         if (SessionManager.getInstance().isGerente()) {
             popup.add(itemEliminar);
         }
-        
-        // CORRECCIÓN: Removida la instrucción table.setComponentPopupMenu(popup) global.
         return popup;
     }
 
@@ -182,20 +179,19 @@ public class AlertasPanel extends JPanel {
         if (currentWorker != null && !currentWorker.isDone())
             currentWorker.cancel(true);
         String termino = txtBuscar.getText().trim();
-        if (termino.isEmpty()) {
-            refresh();
-            return;
-        }
+        
         currentWorker = new SwingWorker<List<Alerta>, Void>() {
             @Override
             protected List<Alerta> doInBackground() throws Exception {
-                return alertaDAO.buscar(termino);
+                return alertaService.buscarAlertas(termino);
             }
 
             @Override
             protected void done() {
                 try {
-                    poblarTabla(get());
+                    if (!isCancelled()) {
+                        poblarTabla(get());
+                    }
                 } catch (Exception ex) {
                 }
             }
@@ -210,11 +206,11 @@ public class AlertasPanel extends JPanel {
         if (row < 0)
             return;
         int opt = JOptionPane.showConfirmDialog(this,
-                "Eliminar esta alerta permanentemente?", "Confirmar",
+                "¿Eliminar esta alerta permanentemente?", "Confirmar",
                 JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
         if (opt == JOptionPane.YES_OPTION) {
             try {
-                alertaDAO.eliminar((int) tableModel.getValueAt(row, 0));
+                new com.tornillos.dao.AlertaDAO().eliminar((int) tableModel.getValueAt(row, 0));
                 mainFrame.actualizarBadgeAlertas();
                 refresh();
             } catch (Exception ex) {
@@ -227,11 +223,11 @@ public class AlertasPanel extends JPanel {
         if (!SessionManager.getInstance().isGerente())
             return;
         int opt = JOptionPane.showConfirmDialog(this,
-                "Eliminar TODAS las alertas permanentemente?\nEsta accion no se puede deshacer.",
-                "Confirmar eliminacion", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+                "¿Eliminar TODAS las alertas permanentemente?\nEsta acción no se puede deshacer.",
+                "Confirmar eliminación", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
         if (opt == JOptionPane.YES_OPTION) {
             try {
-                alertaDAO.eliminarTodas();
+                new com.tornillos.dao.AlertaDAO().eliminarTodas();
                 mainFrame.actualizarBadgeAlertas();
                 refresh();
             } catch (Exception ex) {
@@ -243,7 +239,7 @@ public class AlertasPanel extends JPanel {
     private void mostrarHistorial() {
         JDialog dialog = new JDialog(SwingUtilities.getWindowAncestor(this), "Historial de alertas",
                 Dialog.ModalityType.APPLICATION_MODAL);
-        dialog.setSize(900, 500);
+        dialog.setSize(950, 520);
         dialog.setLocationRelativeTo(this);
         dialog.setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
 
@@ -251,12 +247,12 @@ public class AlertasPanel extends JPanel {
         panel.setBackground(AppTheme.BG_SURFACE);
         panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
 
-        JLabel titulo = new JLabel("Historial de alertas");
+        JLabel titulo = new JLabel("Historial de Alertas Completo");
         titulo.setFont(new Font("Segoe UI", Font.BOLD, 20));
         titulo.setForeground(AppTheme.TEXT_PRIMARY);
         panel.add(titulo, BorderLayout.NORTH);
 
-        String[] cols = { "ID", "Tipo", "Tornillo", "Codigo", "Mensaje", "Email", "Fecha" };
+        String[] cols = { "ID", "Tipo", "Tornillo", "Código", "Mensaje", "Email", "Fecha" };
         DefaultTableModel histModel = new DefaultTableModel(cols, 0) {
             @Override
             public boolean isCellEditable(int r, int c) {
@@ -283,7 +279,7 @@ public class AlertasPanel extends JPanel {
         SwingWorker<List<Alerta>, Void> w = new SwingWorker<>() {
             @Override
             protected List<Alerta> doInBackground() throws Exception {
-                return alertaDAO.listarHistorial();
+                return new com.tornillos.dao.AlertaDAO().listarHistorial();
             }
 
             @Override
@@ -295,7 +291,7 @@ public class AlertasPanel extends JPanel {
                                 a.getId(), a.getTipo(),
                                 a.getTornilloNombre(), a.getTornilloCodigo(),
                                 a.getMensaje(),
-                                a.isEnviadaEmail() ? "Si" : "No",
+                                a.isEnviadaEmail() ? "Sí" : "No",
                                 a.getCreadaEn() != null ? a.getCreadaEn().toString().substring(0, 16) : ""
                         });
                     }
@@ -327,13 +323,15 @@ public class AlertasPanel extends JPanel {
         currentWorker = new SwingWorker<List<Alerta>, Void>() {
             @Override
             protected List<Alerta> doInBackground() throws Exception {
-                return alertaDAO.listarActivas();
+                return alertaService.obtenerAlertasActivas();
             }
 
             @Override
             protected void done() {
                 try {
-                    poblarTabla(get());
+                    if (!isCancelled()) {
+                        poblarTabla(get());
+                    }
                 } catch (Exception ex) {
                 }
             }

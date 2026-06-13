@@ -8,11 +8,13 @@ import java.util.Map;
 
 public class ConfiguracionDAO {
 
-    public Map<String, String> obtenerTodas() throws SQLException {
+    public Map<String, String> obtainAll() throws SQLException {
         Map<String, String> mapa = new HashMap<>();
         try (Statement st = DatabaseConfig.getConnection().createStatement();
              ResultSet rs = st.executeQuery("SELECT clave, valor FROM configuracion")) {
-            while (rs.next()) mapa.put(rs.getString("clave"), rs.getString("valor"));
+            while (rs.next()) {
+                mapa.put(rs.getString("clave"), rs.getString("valor"));
+            }
         }
         return mapa;
     }
@@ -31,7 +33,8 @@ public class ConfiguracionDAO {
         try (PreparedStatement ps = DatabaseConfig.getConnection().prepareStatement(
                 "INSERT INTO configuracion (clave, valor) VALUES (?,?) " +
                 "ON CONFLICT (clave) DO UPDATE SET valor=EXCLUDED.valor")) {
-            ps.setString(1, clave); ps.setString(2, valor);
+            ps.setString(1, clave); 
+            ps.setString(2, valor);
             ps.executeUpdate();
         }
     }
