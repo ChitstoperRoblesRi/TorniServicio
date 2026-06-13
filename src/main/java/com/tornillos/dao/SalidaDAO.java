@@ -11,7 +11,6 @@ public class SalidaDAO {
 
     public void registrar(Salida s) throws SQLException {
         Connection conn = DatabaseConfig.getConnection();
-        // Verificar stock suficiente
         int stockActual;
         try (PreparedStatement ps = conn.prepareStatement(
                 "SELECT stock_actual FROM tornillos WHERE id=?")) {
@@ -56,10 +55,81 @@ public class SalidaDAO {
     }
 
     public int contarHoy() throws SQLException {
+        String sql = "SELECT COUNT(*) FROM salidas WHERE DATE(fecha)=CURRENT_DATE";
         try (Statement st = DatabaseConfig.getConnection().createStatement();
-             ResultSet rs = st.executeQuery("SELECT COUNT(*) FROM salidas WHERE DATE(fecha)=CURRENT_DATE")) {
+             ResultSet rs = st.executeQuery(sql)) {
             return rs.next() ? rs.getInt(1) : 0;
         }
+    }
+
+    public void eliminar(int id) throws SQLException {
+        Connection conn = DatabaseConfig.getConnection();
+        conn.setAutoCommit(false);
+        try {
+            int tornilloId = 0, cantidad = 0;
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "SELECT tornillo_id, cantidad FROM salidas WHERE id=?")) {
+                ps.setInt(1, id);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) {
+                        tornilloId = rs.getInt("tornillo_id");
+                        cantidad   = rs.getInt("cantidad");
+                    }
+                }
+            }
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "UPDATE tornillos SET stock_actual = stock_actual + ? WHERE id=?")) {
+                ps.setInt(1, cantidad); ps.setInt(2, tornilloId);
+                ps.executeUpdate();
+            }
+            try (PreparedStatement ps = conn.prepareStatement("DELETE FROM salidas WHERE id=?")) {
+                ps.setInt(1, id); ps.executeUpdate();
+            }
+            conn.commit();
+        } catch (SQLException ex) {
+            conn.rollback(); 
+            throw ex;
+        } finally {
+            conn.setAutoCommit(true);
+        }
+    }
+
+    public List<Salida> buscar(String termino, String desde, String hasta) throws SQLException {
+        List<Salida> lista = new ArrayList<>();
+        StringBuilder sb = new StringBuilder(
+            "SELECT s.*, t.nombre AS tornillo_nombre, t.codigo AS tornillo_codigo, " +
+            "CONCAT(u.nombre,' ',u.apellido) AS usuario_nombre " +
+            "FROM salidas s " +
+            "JOIN tornillos t ON s.tornillo_id=t.id " +
+            "JOIN usuarios u ON s.usuario_id=u.id WHERE 1=1 ");
+        
+        List<Object> params = new ArrayList<>();
+        if (termino != null && !termino.isEmpty()) {
+            sb.append("AND (LOWER(s.folio) LIKE ? OR LOWER(t.nombre) LIKE ? OR LOWER(s.cliente) LIKE ? OR LOWER(t.codigo) LIKE ?) ");
+            String like = "%" + termino.toLowerCase() + "%";
+            params.add(like); params.add(like); params.add(like); params.add(like);
+        }
+        if (desde != null) { 
+            sb.append("AND s.fecha >= (?::date)::timestamp "); 
+            params.add(desde); 
+        }
+        if (hasta != null) { 
+            sb.append("AND s.fecha < ((?::date) + 1)::timestamp "); 
+            params.add(hasta); 
+        }
+        sb.append("ORDER BY s.fecha DESC");
+        
+        try (PreparedStatement ps = DatabaseConfig.getConnection().prepareStatement(sb.toString())) {
+            for (int i = 0; i < params.size(); i++) {
+                ps.setObject(i+1, params.get(i));
+            }
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    lista.add(mapear(rs));
+                }
+            }
+        }
+        return lista;
     }
 
     private Salida mapear(ResultSet rs) throws SQLException {
@@ -78,66 +148,9 @@ public class SalidaDAO {
         s.setCliente(rs.getString("cliente"));
         s.setObservaciones(rs.getString("observaciones"));
         Timestamp ts = rs.getTimestamp("fecha");
-        if (ts != null) s.setFecha(ts.toLocalDateTime());
+        if (ts != null) {
+            s.setFecha(ts.toLocalDateTime());
+        }
         return s;
-    }
-
-
-
-    public void eliminar(int id) throws SQLException {
-        Connection conn = DatabaseConfig.getConnection();
-        conn.setAutoCommit(false);
-        try {
-            int tornilloId = 0, cantidad = 0;
-            try (PreparedStatement ps = conn.prepareStatement(
-                    "SELECT tornillo_id, cantidad FROM salidas WHERE id=?")) {
-                ps.setInt(1, id);
-                try (ResultSet rs = ps.executeQuery()) {
-                    if (rs.next()) {
-                        tornilloId = rs.getInt("tornillo_id");
-                        cantidad   = rs.getInt("cantidad");
-                    }
-                }
-            }
-            // Revertir stock
-            try (PreparedStatement ps = conn.prepareStatement(
-                    "UPDATE tornillos SET stock_actual = stock_actual + ? WHERE id=?")) {
-                ps.setInt(1, cantidad); ps.setInt(2, tornilloId);
-                ps.executeUpdate();
-            }
-            try (PreparedStatement ps = conn.prepareStatement("DELETE FROM salidas WHERE id=?")) {
-                ps.setInt(1, id); ps.executeUpdate();
-            }
-            conn.commit();
-        } catch (SQLException ex) {
-            conn.rollback(); throw ex;
-        } finally {
-            conn.setAutoCommit(true);
-        }
-    }
-
-    public List<Salida> buscar(String termino, String desde, String hasta) throws SQLException {
-        List<Salida> lista = new ArrayList<>();
-        StringBuilder sb = new StringBuilder(
-            "SELECT s.*, t.nombre AS tornillo_nombre, t.codigo AS tornillo_codigo, " +
-            "CONCAT(u.nombre,' ',u.apellido) AS usuario_nombre " +
-            "FROM salidas s JOIN tornillos t ON s.tornillo_id=t.id " +
-            "JOIN usuarios u ON s.usuario_id=u.id WHERE 1=1 ");
-        List<Object> params = new ArrayList<>();
-        if (termino != null && !termino.isEmpty()) {
-            sb.append("AND (LOWER(s.folio) LIKE ? OR LOWER(t.nombre) LIKE ? OR LOWER(s.cliente) LIKE ? OR LOWER(t.codigo) LIKE ?) ");
-            String like = "%" + termino.toLowerCase() + "%";
-            params.add(like); params.add(like); params.add(like); params.add(like);
-        }
-        if (desde != null) { sb.append("AND s.fecha >= (?::date)::timestamp "); params.add(desde); }
-        if (hasta != null) { sb.append("AND s.fecha < ((?::date) + 1)::timestamp "); params.add(hasta); }
-        sb.append("ORDER BY s.fecha DESC");
-        try (PreparedStatement ps = DatabaseConfig.getConnection().prepareStatement(sb.toString())) {
-            for (int i = 0; i < params.size(); i++) ps.setObject(i+1, params.get(i));
-            try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) lista.add(mapear(rs));
-            }
-        }
-        return lista;
     }
 }

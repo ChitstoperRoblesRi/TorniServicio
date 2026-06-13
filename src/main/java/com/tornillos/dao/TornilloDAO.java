@@ -109,7 +109,7 @@ public class TornilloDAO {
             else ps.setInt(4, t.getCategoriaId());
             
             ps.setString(5, t.getMaterial());
-            ps.setString(6, t.getSistemaMedida() != null ? t.getSistemaMedida() : "METRICO"); // Parámetro 6
+            ps.setString(6, t.getSistemaMedida() != null ? t.getSistemaMedida() : "METRICO");
             
             if (t.getDiametroMm() != null) ps.setBigDecimal(7, t.getDiametroMm()); else ps.setNull(7, Types.DECIMAL);
             if (t.getLongitudMm() != null) ps.setBigDecimal(8, t.getLongitudMm()); else ps.setNull(8, Types.DECIMAL);
@@ -142,7 +142,7 @@ public class TornilloDAO {
             else ps.setInt(4, t.getCategoriaId());
             
             ps.setString(5, t.getMaterial());
-            ps.setString(6, t.getSistemaMedida() != null ? t.getSistemaMedida() : "METRICO"); // Parámetro 6
+            ps.setString(6, t.getSistemaMedida() != null ? t.getSistemaMedida() : "METRICO");
             
             if (t.getDiametroMm() != null) ps.setBigDecimal(7, t.getDiametroMm()); else ps.setNull(7, Types.DECIMAL);
             if (t.getLongitudMm() != null) ps.setBigDecimal(8, t.getLongitudMm()); else ps.setNull(8, Types.DECIMAL);
@@ -208,6 +208,34 @@ public class TornilloDAO {
         return false;
     }
 
+    public void darDeBaja(int id) throws SQLException {
+        try (PreparedStatement ps = DatabaseConfig.getConnection()
+                .prepareStatement("UPDATE tornillos SET activo=false WHERE id=?")) {
+            ps.setInt(1, id);
+            ps.executeUpdate();
+        }
+    }
+
+    public void reactivar(int id) throws SQLException {
+        try (PreparedStatement ps = DatabaseConfig.getConnection()
+                .prepareStatement("UPDATE tornillos SET activo=true WHERE id=?")) {
+            ps.setInt(1, id);
+            ps.executeUpdate();
+        }
+    }
+
+    public List<Tornillo> listarConStockDisponible() throws SQLException {
+        List<Tornillo> lista = new ArrayList<>();
+        String sql = "SELECT t.* FROM tornillos t WHERE t.activo = true AND t.stock_actual > 0 ORDER BY t.nombre";
+        try (Statement st = DatabaseConfig.getConnection().createStatement();
+             ResultSet rs = st.executeQuery(sql)) {
+            while (rs.next()) {
+                lista.add(mapear(rs));
+            }
+        }
+        return lista;
+    }
+
     private Tornillo mapear(ResultSet rs) throws SQLException {
         Tornillo t = new Tornillo();
         t.setId(rs.getInt("id"));
@@ -216,7 +244,7 @@ public class TornilloDAO {
         t.setDescripcion(rs.getString("descripcion"));
         t.setCategoriaId(rs.getInt("categoria_id"));
         t.setMaterial(rs.getString("material"));
-        t.setSistemaMedida(rs.getString("sistema_medida")); // <-- NUEVA LECTURA
+        t.setSistemaMedida(rs.getString("sistema_medida"));
         t.setDiametroMm(rs.getBigDecimal("diametro_mm"));
         t.setLongitudMm(rs.getBigDecimal("longitud_mm"));
         t.setPasoRosca(rs.getBigDecimal("paso_rosca"));
@@ -234,34 +262,5 @@ public class TornilloDAO {
         Timestamp a = rs.getTimestamp("actualizado_en");
         if (a != null) t.setActualizadoEn(a.toLocalDateTime());
         return t;
-    }
-
-    public void darDeBaja(int id) throws java.sql.SQLException {
-        try (java.sql.PreparedStatement ps = com.tornillos.config.DatabaseConfig.getConnection()
-                .prepareStatement("UPDATE tornillos SET activo=false WHERE id=?")) {
-            ps.setInt(1, id);
-            ps.executeUpdate();
-        }
-    }
-
-    public void reactivar(int id) throws java.sql.SQLException {
-        try (java.sql.PreparedStatement ps = com.tornillos.config.DatabaseConfig.getConnection()
-                .prepareStatement("UPDATE tornillos SET activo=true WHERE id=?")) {
-            ps.setInt(1, id);
-            ps.executeUpdate();
-        }
-    }
-
-    public List<Tornillo> listarConStockDisponible() throws SQLException {
-        List<Tornillo> lista = new ArrayList<>();
-        // Filtra estrictamente por tornillos activos que tengan unidades físicas disponibles
-        String sql = "SELECT t.* FROM tornillos t WHERE t.activo = true AND t.stock_actual > 0 ORDER BY t.nombre";
-        try (Statement st = DatabaseConfig.getConnection().createStatement();
-             ResultSet rs = st.executeQuery(sql)) {
-            while (rs.next()) {
-                lista.add(mapear(rs));
-            }
-        }
-        return lista;
     }
 }

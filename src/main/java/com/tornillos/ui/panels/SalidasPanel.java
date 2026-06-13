@@ -9,6 +9,10 @@ import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.GridLayout;
 import java.awt.Insets;
+/* import java.awt.Cursor;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.awt.BasicStroke; */
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
@@ -31,17 +35,16 @@ import javax.swing.JScrollPane;
 import javax.swing.JTable;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
+// import javax.swing.JSeparator;
 import javax.swing.SwingUtilities;
 import javax.swing.SwingWorker;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.TableCellRenderer;
 
 import com.tornillos.config.AppTheme;
-import com.tornillos.dao.SalidaDAO;
-import com.tornillos.dao.TornilloDAO;
 import com.tornillos.model.Salida;
 import com.tornillos.model.Tornillo;
-import com.tornillos.service.AlertaService;
+import com.tornillos.service.SalidaService;
 import com.tornillos.service.SessionManager;
 import com.tornillos.ui.MainFrame;
 import com.tornillos.util.FolioGenerator;
@@ -54,9 +57,8 @@ public class SalidasPanel extends JPanel {
     private JLabel lblConteo;
     private SwingWorker<?, ?> currentWorker;
 
-    private final SalidaDAO salidaDAO     = new SalidaDAO();
-    private final TornilloDAO tornilloDAO = new TornilloDAO();
-    private final AlertaService alertaService = new AlertaService();
+    // Cambiado: Ahora la interfaz depende estrictamente de su capa de servicio dedicada
+    private final SalidaService salidaService = new SalidaService();
 
     private final String[] MOTIVOS = {"Venta","Uso Interno","Muestra","Devolucion","Merma","Otro"};
 
@@ -83,7 +85,7 @@ public class SalidasPanel extends JPanel {
 
         JPanel left = new JPanel(new GridLayout(2, 1));
         left.setOpaque(false);
-        JLabel title = new JLabel("Modulo de Salidas");
+        JLabel title = new JLabel("Módulo de Salidas");
         title.setFont(new Font("Segoe UI", Font.BOLD, 24));
         title.setForeground(AppTheme.TEXT_PRIMARY);
         lblConteo = new JLabel("");
@@ -106,7 +108,6 @@ public class SalidasPanel extends JPanel {
         JPanel p = new JPanel(new BorderLayout(0, 10));
         p.setOpaque(false);
 
-        // Filtros
         JPanel bar = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
         bar.setOpaque(false);
         txtBuscar = AppTheme.styledField("Buscar por folio, tornillo, cliente...");
@@ -140,13 +141,13 @@ public class SalidasPanel extends JPanel {
         bar.add(btnFiltrar); bar.add(btnLimpiar);
         p.add(bar, BorderLayout.NORTH);
 
-        // Tabla
-        String[] cols = {"ID","Folio","Tornillo","Codigo","Motivo","Cliente","Cantidad","P.Unitario","Total","Usuario","Fecha"};
+        String[] cols = {"ID","Folio","Tornillo","Código","Motivo","Cliente","Cantidad","P.Unitario","Total","Usuario","Fecha"};
         tableModel = new DefaultTableModel(cols, 0) {
             @Override public boolean isCellEditable(int r, int c) { return false; }
         };
         table = new JTable(tableModel) {
-            @Override public Component prepareRenderer(TableCellRenderer r, int row, int col) {
+            @Override
+            public Component prepareRenderer(TableCellRenderer r, int row, int col) {
                 Component c = super.prepareRenderer(r, row, col);
                 if (!isRowSelected(row)) {
                     c.setBackground(row % 2 == 0 ? AppTheme.BG_CARD : AppTheme.BG_SURFACE);
@@ -162,23 +163,15 @@ public class SalidasPanel extends JPanel {
         table.getColumnModel().getColumn(0).setMinWidth(0);
         table.getColumnModel().getColumn(0).setMaxWidth(0);
 
-        // Inicializar JPopupMenu local con retorno controlado
         final JPopupMenu menuContextual = buildContextMenu();
 
         table.addMouseListener(new MouseAdapter() {
-            @Override public void mousePressed(MouseEvent e) {
-                evaluarClicContextual(e);
-            }
-
-            @Override public void mouseReleased(MouseEvent e) {
-                evaluarClicContextual(e);
-            }
+            @Override public void mousePressed(MouseEvent e) { evaluarClicContextual(e); }
+            @Override public void mouseReleased(MouseEvent e) { evaluarClicContextual(e); }
 
             private void evaluarClicContextual(MouseEvent e) {
                 if (e.isPopupTrigger() || SwingUtilities.isRightMouseButton(e)) {
                     int row = table.rowAtPoint(e.getPoint());
-                    
-                    // CORRECCIÓN: Desplegar el menú únicamente si golpea un registro real de la lista
                     if (row >= 0 && row < table.getRowCount()) {
                         table.setRowSelectionInterval(row, row);
                         menuContextual.show(table, e.getX(), e.getY());
@@ -200,8 +193,6 @@ public class SalidasPanel extends JPanel {
         if (SessionManager.getInstance().isGerente()) {
             popup.add(itemEliminar);
         }
-        
-        // CORRECCIÓN: Removida la instrucción table.setComponentPopupMenu(popup) global.
         return popup;
     }
 
@@ -215,11 +206,13 @@ public class SalidasPanel extends JPanel {
         if (row < 0) { JOptionPane.showMessageDialog(this, "Selecciona una salida."); return; }
         String folio = tableModel.getValueAt(row, 1).toString();
         int opt = JOptionPane.showConfirmDialog(this,
-            "Eliminar salida " + folio + "?\nEsto revertira el stock del tornillo.",
-            "Confirmar eliminacion", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+            "Eliminar salida " + folio + "?\nEsto revertirá el stock del tornillo.",
+            "Confirmar eliminación", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
         if (opt == JOptionPane.YES_OPTION) {
             try {
-                salidaDAO.eliminar((int) tableModel.getValueAt(row, 0));
+                // Cambiado: Invocación canalizada al servicio para procesar transacciones y reajustar las alertas
+                salidaService.eliminarSalida((int) tableModel.getValueAt(row, 0));
+                mainFrame.actualizarBadgeAlertas();
                 refresh();
                 JOptionPane.showMessageDialog(this, "Salida eliminada y stock revertido.");
             } catch (Exception ex) {
@@ -228,10 +221,8 @@ public class SalidasPanel extends JPanel {
         }
     }
 
-    // CORRECCIÓN: Modificado a visibilidad 'public' para permitir la navegación directa desde las acciones rápidas del Dashboard
     public void abrirFormularioSalida() {
-        JDialog dlg = new JDialog((JFrame) SwingUtilities.getWindowAncestor(this),
-            "Registrar Salida", true);
+        JDialog dlg = new JDialog((JFrame) SwingUtilities.getWindowAncestor(this), "Registrar Salida", true);
         dlg.setSize(540, 480);
         dlg.setLocationRelativeTo(this);
         dlg.getContentPane().setBackground(AppTheme.BG_CARD);
@@ -245,23 +236,20 @@ public class SalidasPanel extends JPanel {
 
         List<Tornillo> tornillos;
         try { 
-            // CORREGIDO: Ahora jala únicamente los tornillos con existencias disponibles en inventario
-            tornillos = tornilloDAO.listarConStockDisponible(); 
+            // Cambiado: Ahora se le solicita de manera limpia el catálogo disponible a la capa intermedia
+            tornillos = salidaService.obtenerTornillosConStock(); 
         } catch (Exception e) { 
             JOptionPane.showMessageDialog(this, "Error cargando existencias: " + e.getMessage()); 
             return; 
         }
 
         JComboBox<Tornillo> cmbTornillo = com.tornillos.util.SearchableComboBoxFactory.create(tornillos);
-        
         cmbTornillo.setBackground(AppTheme.BG_CARD_HOVER);
         cmbTornillo.setForeground(AppTheme.TEXT_PRIMARY);
         JComboBox<String> cmbMotivo = AppTheme.styledCombo(MOTIVOS);
         
-        // UI del botón de flecha premium
         cmbMotivo.setUI(new javax.swing.plaf.basic.BasicComboBoxUI() {
-            @Override
-            protected JButton createArrowButton() {
+            @Override protected JButton createArrowButton() {
                 JButton btn = new JButton("▼");
                 btn.setFont(new Font("Segoe UI", Font.PLAIN, 10));
                 btn.setForeground(AppTheme.BG_BASE);
@@ -273,10 +261,8 @@ public class SalidasPanel extends JPanel {
             }
         });
 
-        // Borde redondeado con el color oficial
         cmbMotivo.setBorder(new javax.swing.border.Border() {
-            @Override
-            public void paintBorder(Component c, java.awt.Graphics g, int x, int y, int width, int height) {
+            @Override public void paintBorder(Component c, java.awt.Graphics g, int x, int y, int width, int height) {
                 java.awt.Graphics2D g2 = (java.awt.Graphics2D) g.create();
                 g2.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING, java.awt.RenderingHints.VALUE_ANTIALIAS_ON);
                 g2.setColor(AppTheme.BORDER);
@@ -287,18 +273,15 @@ public class SalidasPanel extends JPanel {
             @Override public boolean isBorderOpaque() { return false; }
         });
 
-        // Editor oscuro protegido
         cmbMotivo.setEditor(new javax.swing.plaf.basic.BasicComboBoxEditor() {
-            @Override
-            protected JTextField createEditorComponent() {
+            @Override protected JTextField createEditorComponent() {
                 JTextField txt = new JTextField();
                 txt.setBackground(AppTheme.BG_CARD_HOVER);
                 txt.setForeground(AppTheme.TEXT_PRIMARY);
                 txt.setEditable(false);
                 txt.setBorder(BorderFactory.createEmptyBorder(2, 6, 2, 6));
                 txt.addMouseListener(new java.awt.event.MouseAdapter() {
-                    @Override
-                    public void mousePressed(java.awt.event.MouseEvent e) {
+                    @Override public void mousePressed(java.awt.event.MouseEvent e) {
                         if (cmbMotivo.isEnabled()) {
                             if (cmbMotivo.isPopupVisible()) cmbMotivo.hidePopup();
                             else cmbMotivo.showPopup();
@@ -335,10 +318,9 @@ public class SalidasPanel extends JPanel {
             }
         });
         cmbTornillo.setSelectedIndex(-1);
-        // Sincronización estética para el combo de búsqueda predictiva (Conserva la escritura libre)
+
         cmbTornillo.setUI(new javax.swing.plaf.basic.BasicComboBoxUI() {
-            @Override
-            protected JButton createArrowButton() {
+            @Override protected JButton createArrowButton() {
                 JButton btn = new JButton("▼");
                 btn.setFont(new Font("Segoe UI", Font.PLAIN, 10));
                 btn.setForeground(AppTheme.BG_BASE);
@@ -350,8 +332,7 @@ public class SalidasPanel extends JPanel {
             }
         });
         cmbTornillo.setBorder(new javax.swing.border.Border() {
-            @Override
-            public void paintBorder(Component c, java.awt.Graphics g, int x, int y, int width, int height) {
+            @Override public void paintBorder(Component c, java.awt.Graphics g, int x, int y, int width, int height) {
                 java.awt.Graphics2D g2 = (java.awt.Graphics2D) g.create();
                 g2.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING, java.awt.RenderingHints.VALUE_ANTIALIAS_ON);
                 g2.setColor(AppTheme.BORDER);
@@ -402,19 +383,17 @@ public class SalidasPanel extends JPanel {
                 s.setCliente(txtCliente.getText().trim());
                 s.setObservaciones(txtObs.getText().trim());
 
-                salidaDAO.registrar(s);
+                // Cambiado: Registro y disparo de alertas procesados de forma segura e íntegra en el Service
+                salidaService.registrarSalida(s);
+                
                 dlg.dispose();
-
-                new Thread(() -> {
-                    alertaService.verificarAlertas();
-                    SwingUtilities.invokeLater(() -> mainFrame.actualizarBadgeAlertas());
-                }).start();
-
                 refresh();
+                mainFrame.actualizarBadgeAlertas();
+
                 JOptionPane.showMessageDialog(this,
-                    "Salida registrada. Folio: " + folio, "Exito", JOptionPane.INFORMATION_MESSAGE);
+                    "Salida registrada. Folio: " + folio, "Éxito", JOptionPane.INFORMATION_MESSAGE);
             } catch (NumberFormatException ex) {
-                JOptionPane.showMessageDialog(dlg, "Datos numericos invalidos.", "Error", JOptionPane.ERROR_MESSAGE);
+                JOptionPane.showMessageDialog(dlg, "Datos numéricos inválidos.", "Error", JOptionPane.ERROR_MESSAGE);
             } catch (Exception ex) {
                 JOptionPane.showMessageDialog(dlg, "Error: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
             }
@@ -427,13 +406,9 @@ public class SalidasPanel extends JPanel {
     }
 
     private void addRow(JPanel p, GridBagConstraints gbc, int row, String label, JComponent field) {
-        gbc.gridx = 0; 
-        gbc.gridy = row; 
-        gbc.gridwidth = 1; 
-        gbc.weightx = 0.0;
+        gbc.gridx = 0; gbc.gridy = row; gbc.gridwidth = 1; gbc.weightx = 0.0;
         p.add(AppTheme.label(label), gbc);
-        gbc.gridx = 1; 
-        gbc.weightx = 1.0;
+        gbc.gridx = 1; gbc.weightx = 1.0;
         p.add(field, gbc);
     }
 
@@ -460,10 +435,16 @@ public class SalidasPanel extends JPanel {
                 String termino = txtBuscar.getText().trim();
                 String desde = txtDesde.getText().trim().isEmpty() ? null : txtDesde.getText().trim();
                 String hasta = txtHasta.getText().trim().isEmpty() ? null : txtHasta.getText().trim();
-                return salidaDAO.buscar(termino, desde, hasta);
+                
+                // Cambiado: Delegación de búsqueda limpia hacia la capa lógica
+                return salidaService.buscarSalidas(termino, desde, hasta);
             }
             @Override protected void done() {
-                try { poblarTabla(get()); } catch (Exception ex) { /* ignored */ }
+                try { 
+                    if (!isCancelled()) {
+                        poblarTabla(get()); 
+                    }
+                } catch (Exception ex) { /* ignored */ }
             }
         };
         currentWorker.execute();

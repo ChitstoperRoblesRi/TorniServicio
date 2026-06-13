@@ -1,7 +1,6 @@
 package com.tornillos.ui.panels;
 
 import java.awt.BorderLayout;
-import java.awt.Color;
 import java.awt.Insets;
 import java.awt.Component;
 import java.awt.Dimension;
@@ -32,9 +31,8 @@ import javax.swing.table.DefaultTableModel;
 import javax.swing.table.TableCellRenderer;
 
 import com.tornillos.config.AppTheme;
-import com.tornillos.dao.TornilloDAO;
 import com.tornillos.model.Tornillo;
-import com.tornillos.service.AlertaService;
+import com.tornillos.service.InventarioService;
 import com.tornillos.service.SessionManager;
 import com.tornillos.ui.MainFrame;
 import com.tornillos.ui.dialogs.TornilloDialog;
@@ -49,8 +47,9 @@ public class InventarioPanel extends JPanel {
     private SwingWorker<?, ?> currentWorker;
 
     private final MainFrame mainFrame;
-    private final TornilloDAO tornilloDAO = new TornilloDAO();
-    private final AlertaService alertaService = new AlertaService();
+    
+    // Cambiado: Ahora consume el Servicio en lugar de instanciar directamente el DAO
+    private final InventarioService inventarioService = new InventarioService();
 
     public InventarioPanel(MainFrame frame) {
         this.mainFrame = frame;
@@ -118,11 +117,9 @@ public class InventarioPanel extends JPanel {
             }
         });
 
-        // INTEGRADO: Añadido "Inactivos" como quinto estado disponible
         cmbEstado = AppTheme.styledCombo(new String[] { "Todos los estados", "Normal", "Stock Bajo", "Crítico", "Sin Stock", "Inactivos" });
         cmbEstado.setPreferredSize(new Dimension(160, 34));
 
-        // ── SOLUCIÓN DE RAÍZ: Reemplazar la UI nativa de Windows por una limpia, agnóstica y oscura ──
         cmbEstado.setUI(new javax.swing.plaf.basic.BasicComboBoxUI() {
             @Override
             protected JButton createArrowButton() {
@@ -137,45 +134,27 @@ public class InventarioPanel extends JPanel {
             }
         });
 
-        // ── ENMARCADO Y REDONDEO PREMIUM CON EL COLOR OFICIAL DEL DESIGN SYSTEM ──
         cmbEstado.setBorder(new javax.swing.border.Border() {
             @Override
             public void paintBorder(Component c, java.awt.Graphics g, int x, int y, int width, int height) {
                 java.awt.Graphics2D g2 = (java.awt.Graphics2D) g.create();
-                // Activamos el suavizado de bordes (Antialiasing) para evitar pixeles duros
                 g2.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING, java.awt.RenderingHints.VALUE_ANTIALIAS_ON);
-                
-                // ¡AQUÍ ESTÁ TU COLOR EXACTO! Usamos el mismo borde que styledField
                 g2.setColor(AppTheme.BORDER); 
-                
-                // Dibujamos el rectángulo redondeado (radio de 8px para suavizar las esquinas rectas)
                 g2.drawRoundRect(x, y, width - 1, height - 1, 8, 8);
                 g2.dispose();
             }
-
-            @Override
-            public Insets getBorderInsets(Component c) {
-                // Margen interno sutil para proteger el texto del redondeo
-                return new Insets(2, 2, 2, 2);
-            }
-
-            @Override
-            public boolean isBorderOpaque() {
-                return false;
-            }
+            @Override public Insets getBorderInsets(Component c) { return new Insets(2, 2, 2, 2); }
+            @Override public boolean isBorderOpaque() { return false; }
         });
 
-        // ── PARCHE LOOK & FEEL PARA EL EDITOR TEXTUAL INTERNO ──
         cmbEstado.setEditor(new javax.swing.plaf.basic.BasicComboBoxEditor() {
             @Override
             protected JTextField createEditorComponent() {
                 JTextField txt = new JTextField();
-                txt.setBackground(AppTheme.BG_CARD_HOVER); // Tu fondo oscuro premium
-                txt.setForeground(AppTheme.TEXT_PRIMARY);    // Tu texto claro
-                txt.setEditable(false);                     // Bloquea por completo la escritura libre
+                txt.setBackground(AppTheme.BG_CARD_HOVER);
+                txt.setForeground(AppTheme.TEXT_PRIMARY);
+                txt.setEditable(false);
                 txt.setBorder(BorderFactory.createEmptyBorder(2, 6, 2, 6));
-                
-                // Abre el menú desplegable al hacer clic en cualquier parte de la caja de texto
                 txt.addMouseListener(new java.awt.event.MouseAdapter() {
                     @Override
                     public void mousePressed(java.awt.event.MouseEvent e) {
@@ -190,11 +169,9 @@ public class InventarioPanel extends JPanel {
         });
         cmbEstado.setEditable(true);
         
-        // Sincroniza el texto inicial del contenedor con el editor oscuro
         Object inicial = cmbEstado.getSelectedItem();
         cmbEstado.getEditor().setItem(inicial != null ? inicial.toString() : "");
 
-        // Listener corregido: actualiza el texto visual del editor y dispara el filtro
         cmbEstado.addActionListener(e -> {
             Object item = cmbEstado.getSelectedItem();
             cmbEstado.getEditor().setItem(item != null ? item.toString() : "");
@@ -215,14 +192,11 @@ public class InventarioPanel extends JPanel {
     }
 
     private JScrollPane buildTable() {
-        // AGREGADO: Columna oculta en índice 11 para trackear la propiedad "activo" nativa
         String[] cols = { "ID", "Código", "Nombre", "Material", "Diámetro", "Longitud", "Stock", "Mín.",
                 "P.Venta", "Estado", "Ubicación", "Activo" };
         tableModel = new DefaultTableModel(cols, 0) {
             @Override
-            public boolean isCellEditable(int r, int c) {
-                return false;
-            }
+            public boolean isCellEditable(int r, int c) { return false; }
         };
 
         table = new JTable(tableModel) {
@@ -273,7 +247,6 @@ public class InventarioPanel extends JPanel {
             table.getColumnModel().getColumn(i).setPreferredWidth(widths[i]);
         }
 
-        // Construcción e inicialización del JPopupMenu con su lógica interna
         final JPopupMenu menuContextual = buildContextMenu();
 
         table.addMouseListener(new MouseAdapter() {
@@ -286,21 +259,12 @@ public class InventarioPanel extends JPanel {
                 }
             }
 
-            @Override
-            public void mousePressed(MouseEvent e) {
-                evaluarClicContextual(e);
-            }
-
-            @Override
-            public void mouseReleased(MouseEvent e) {
-                evaluarClicContextual(e);
-            }
+            @Override public void mousePressed(MouseEvent e) { evaluarClicContextual(e); }
+            @Override public void mouseReleased(MouseEvent e) { evaluarClicContextual(e); }
 
             private void evaluarClicContextual(MouseEvent e) {
                 if (e.isPopupTrigger() || SwingUtilities.isRightMouseButton(e)) {
                     int row = table.rowAtPoint(e.getPoint());
-                    
-                    // CORRECCIÓN DE SEGURIDAD VISUAL: Solo abre el menú si golpea una fila válida
                     if (row >= 0 && row < table.getRowCount()) {
                         table.setRowSelectionInterval(row, row);
                         menuContextual.show(table, e.getX(), e.getY());
@@ -324,8 +288,7 @@ public class InventarioPanel extends JPanel {
             JMenuItem editItem = AppTheme.darkMenuItem("Editar tornillo", null);
             editItem.addActionListener(e -> {
                 int row = table.getSelectedRow();
-                if (row >= 0)
-                    abrirDialogoPorId((int) tableModel.getValueAt(row, 0));
+                if (row >= 0) abrirDialogoPorId((int) tableModel.getValueAt(row, 0));
             });
 
             JMenuItem bajaItem = AppTheme.darkMenuItem("Dar de baja tornillo", null);
@@ -340,7 +303,6 @@ public class InventarioPanel extends JPanel {
             eliminarItem.setForeground(AppTheme.DANGER_TEXT);
             eliminarItem.addActionListener(ev -> eliminarSeleccionado());
 
-            // CORRECCIÓN ASÍNCRONA: PopupMenuListener nativo para evitar retrasos y menús vacíos
             popup.addPopupMenuListener(new javax.swing.event.PopupMenuListener() {
                 @Override
                 public void popupMenuWillBecomeVisible(javax.swing.event.PopupMenuEvent e) {
@@ -362,8 +324,7 @@ public class InventarioPanel extends JPanel {
 
                     popup.add(AppTheme.darkSeparator());
                     popup.add(eliminarItem);
-                    
-                    popup.pack(); // Fuerza el cálculo instantáneo de dimensiones
+                    popup.pack();
                 }
 
                 @Override public void popupMenuWillBecomeInvisible(javax.swing.event.PopupMenuEvent e) {}
@@ -378,8 +339,7 @@ public class InventarioPanel extends JPanel {
 
     private void verStock() {
         int row = table.getSelectedRow();
-        if (row < 0)
-            return;
+        if (row < 0) return;
         String nombre = tableModel.getValueAt(row, 2).toString();
         int stock = (int) tableModel.getValueAt(row, 6);
         int minimo = (int) tableModel.getValueAt(row, 7);
@@ -422,21 +382,20 @@ public class InventarioPanel extends JPanel {
 
     private void darDeBaja() {
         int row = table.getSelectedRow();
-        if (row < 0)
-            return;
+        if (row < 0) return;
         int id = (int) tableModel.getValueAt(row, 0);
         String nombre = tableModel.getValueAt(row, 2).toString();
         int opt = JOptionPane.showConfirmDialog(this,
-                "Dar de baja a '" + nombre + "'?\n" +
+                "¿Dar de baja a '" + nombre + "'?\n" +
                         "El tornillo quedará inactivo pero su historial se conserva.",
                 "Dar de baja", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
-        if (opt != JOptionPane.YES_OPTION)
-            return;
+        if (opt != JOptionPane.YES_OPTION) return;
         try {
-            tornilloDAO.darDeBaja(id);
+            // Cambiado: Ahora delega al servicio unificado
+            inventarioService.darDeBajaTornillo(id);
             buscarConFiltro(); 
-            JOptionPane.showMessageDialog(this,
-                    "'" + nombre + "' ha sido desactivado.", "Listo", JOptionPane.INFORMATION_MESSAGE);
+            mainFrame.actualizarBadgeAlertas();
+            JOptionPane.showMessageDialog(this, "'" + nombre + "' ha sido desactivado.", "Listo", JOptionPane.INFORMATION_MESSAGE);
         } catch (Exception ex) {
             JOptionPane.showMessageDialog(this, "Error: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
         }
@@ -444,15 +403,15 @@ public class InventarioPanel extends JPanel {
 
     private void reactivarTornillo() {
         int row = table.getSelectedRow();
-        if (row < 0)
-            return;
+        if (row < 0) return;
         int id = (int) tableModel.getValueAt(row, 0);
         String nombre = tableModel.getValueAt(row, 2).toString();
         try {
-            tornilloDAO.reactivar(id);
+            // Cambiado: Ahora delega al servicio unificado
+            inventarioService.reactivarTornillo(id);
             buscarConFiltro();
-            JOptionPane.showMessageDialog(this,
-                    "'" + nombre + "' ha sido reactivado con éxito.", "Éxito", JOptionPane.INFORMATION_MESSAGE);
+            mainFrame.actualizarBadgeAlertas();
+            JOptionPane.showMessageDialog(this, "'" + nombre + "' ha sido reactivado con éxito.", "Éxito", JOptionPane.INFORMATION_MESSAGE);
         } catch (Exception ex) {
             JOptionPane.showMessageDialog(this, "Error: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
         }
@@ -460,31 +419,30 @@ public class InventarioPanel extends JPanel {
 
     private void eliminarSeleccionado() {
         int row = table.getSelectedRow();
-        if (row < 0)
-            return;
+        if (row < 0) return;
         int id = (int) tableModel.getValueAt(row, 0);
         String nombre = tableModel.getValueAt(row, 2).toString();
         int opt = JOptionPane.showConfirmDialog(this,
-                "ELIMINAR PERMANENTEMENTE '" + nombre + "'?\n" +
-                        "Esta acción no se puede deshacer.",
+                "¿ELIMINAR PERMANENTEMENTE '" + nombre + "'?\nEsta acción no se puede deshacer.",
                 "Eliminar", JOptionPane.YES_NO_OPTION, JOptionPane.ERROR_MESSAGE);
-        if (opt != JOptionPane.YES_OPTION)
-            return;
+        if (opt != JOptionPane.YES_OPTION) return;
         try {
-            tornilloDAO.eliminar(id);
+            // Cambiado: Ahora delega al servicio unificado
+            inventarioService.eliminarTornilloPermanente(id);
             buscarConFiltro();
+            mainFrame.actualizarBadgeAlertas();
         } catch (Exception ex) {
             JOptionPane.showMessageDialog(this, "Error: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
         }
     }
 
     public void abrirDialogo(Tornillo tornillo) {
-        TornilloDialog dlg = new TornilloDialog(
-                (JFrame) SwingUtilities.getWindowAncestor(this), tornillo);
+        TornilloDialog dlg = new TornilloDialog((JFrame) SwingUtilities.getWindowAncestor(this), tornillo);
         dlg.setVisible(true);
+        // CORREGIDO: Se añadió el llamado correcto al método () para resolver el error de compilación
         if (dlg.isGuardado()) {
             buscarConFiltro();
-            alertaService.verificarAlertas();
+            inventarioService.forzarVerificacionAlertas();
             mainFrame.actualizarBadgeAlertas();
         }
     }
@@ -495,7 +453,8 @@ public class InventarioPanel extends JPanel {
 
     private void abrirDialogoPorId(int id) {
         try {
-            Tornillo t = tornilloDAO.obtenerPorId(id);
+            // Cambiado: Ahora se obtiene mediante el servicio unificado
+            Tornillo t = inventarioService.obtenerTornilloPorId(id);
             abrirDialogo(t);
         } catch (Exception e) {
             JOptionPane.showMessageDialog(this, "Error: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
@@ -506,7 +465,6 @@ public class InventarioPanel extends JPanel {
         String termino = txtBuscar.getText().trim();
         String[] estadoMap = { null, "NORMAL", "BAJO", "CRÍTICO", "SIN_STOCK", "INACTIVO" };
         
-        // BLINDAJE: Si el renderizado editable devuelve -1, lo forzamos a 0 ("Todos los estados")
         int indexSeleccionado = cmbEstado.getSelectedIndex();
         if (indexSeleccionado < 0) {
             indexSeleccionado = 0;
@@ -522,13 +480,16 @@ public class InventarioPanel extends JPanel {
         currentWorker = new SwingWorker<List<Tornillo>, Void>() {
             @Override
             protected List<Tornillo> doInBackground() throws Exception {
-                return tornilloDAO.listarConFiltro(ft, fe);
+                // Cambiado: Ahora solicita los datos filtrados a través del servicio
+                return inventarioService.buscarTornillos(ft, fe);
             }
 
             @Override
             protected void done() {
                 try {
-                    poblarTabla(get());
+                    if (!isCancelled()) {
+                        poblarTabla(get());
+                    }
                 } catch (Exception e) {
                 }
             }
@@ -557,7 +518,6 @@ public class InventarioPanel extends JPanel {
             tableModel.addRow(new Object[] {
                     t.getId(), t.getCodigo(), t.getNombre(),
                     t.getMaterial(),
-                    // Pasamos el valor y el sistema de medida por el formateador dinámico
                     formatearMedida(t.getDiametroMm(), t.getSistemaMedida()),
                     formatearMedida(t.getLongitudMm(), t.getSistemaMedida()),
                     t.getStockActual(), t.getStockMinimo(),
@@ -572,10 +532,6 @@ public class InventarioPanel extends JPanel {
         buscarConFiltro();
     }
 
-    /**
-     * Convierte un BigDecimal numérico a una representación visual amigable 
-    * dependiendo de si el sistema de medida es MÉTRICO o IMPERIAL.
-    */
     private String formatearMedida(java.math.BigDecimal valor, String sistemaMedida) {
         if (valor == null) return "";
         
@@ -585,7 +541,6 @@ public class InventarioPanel extends JPanel {
             double decimal = val - entero;
 
             String fraccion = "";
-            // Mapeo preciso de los decimales flotantes a fracciones comunes en ferreterías
             if (Math.abs(decimal - 0.0625) < 0.001) fraccion = "1/16";
             else if (Math.abs(decimal - 0.125) < 0.001)  fraccion = "1/8";
             else if (Math.abs(decimal - 0.1875) < 0.001) fraccion = "3/16";
@@ -597,7 +552,6 @@ public class InventarioPanel extends JPanel {
             else if (Math.abs(decimal - 0.75) < 0.001)   fraccion = "3/4";
             else if (Math.abs(decimal - 0.875) < 0.001)  fraccion = "7/8";
 
-            // Construir la cadena final (Fracción mixta o simple)
             if (entero > 0) {
                 return fraccion.isEmpty() ? valor.toPlainString() + "\"" : entero + " " + fraccion + "\"";
             } else {
@@ -605,7 +559,6 @@ public class InventarioPanel extends JPanel {
             }
         }
         
-        // Si es MÉTRICO, simplemente adjuntamos la unidad "mm" de forma limpia
         return valor.stripTrailingZeros().toPlainString() + " mm";
     }
 }

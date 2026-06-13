@@ -34,111 +34,69 @@ public class AlertaDAO {
             ps.setString(2, a.getTipo());
             ps.setString(3, a.getMensaje());
             ps.executeUpdate();
-            try (ResultSet keys = ps.getGeneratedKeys()) {
-                if (keys.next()) a.setId(keys.getInt(1));
+            try (ResultSet generatedKeys = ps.getGeneratedKeys()) {
+                if (generatedKeys.next()) {
+                    a.setId(generatedKeys.getInt(1));
+                }
             }
         }
     }
 
     public List<Alerta> listarActivas() throws SQLException {
         List<Alerta> lista = new ArrayList<>();
-        String sql = "SELECT DISTINCT ON (a.tornillo_id) a.*, t.nombre AS tornillo_nombre, t.codigo AS tornillo_codigo "
-                +
-                "FROM alertas a JOIN tornillos t ON a.tornillo_id=t.id " +
-                "WHERE t.activo=true AND t.stock_actual <= t.stock_minimo " +
-                "ORDER BY a.tornillo_id, a.creada_en DESC";
+        String sql = "SELECT DISTINCT ON (a.tornillo_id) a.*, t.nombre AS tornillo_nombre, t.codigo AS tornillo_codigo " +
+                     "FROM alertas a " +
+                     "JOIN tornillos t ON a.tornillo_id = t.id " +
+                     "WHERE t.activo = true AND t.stock_actual <= t.stock_minimo " +
+                     "ORDER BY a.tornillo_id, a.creada_en DESC";
         try (Statement st = DatabaseConfig.getConnection().createStatement();
-                ResultSet rs = st.executeQuery(sql)) {
-            while (rs.next())
+             ResultSet rs = st.executeQuery(sql)) {
+            while (rs.next()) {
                 lista.add(mapear(rs));
-        }
-        return lista;
-    }
-
-    public int contarActivas() throws SQLException {
-        try (Statement st = DatabaseConfig.getConnection().createStatement();
-                ResultSet rs = st.executeQuery(
-                    "SELECT COUNT(DISTINCT a.tornillo_id) FROM alertas a " +
-                    "JOIN tornillos t ON a.tornillo_id=t.id " +
-                    "WHERE t.activo=true AND t.stock_actual <= t.stock_minimo")) {
-            return rs.next() ? rs.getInt(1) : 0;
-        }
-    }
-
-    public void eliminar(int id) throws SQLException {
-        try (PreparedStatement ps = DatabaseConfig.getConnection()
-                .prepareStatement("DELETE FROM alertas WHERE id=?")) {
-            ps.setInt(1, id);
-            ps.executeUpdate();
-        }
-    }
-
-    public void eliminarTodas() throws SQLException {
-        try (Statement st = DatabaseConfig.getConnection().createStatement()) {
-            st.executeUpdate("DELETE FROM alertas");
-        }
-    }
-
-    public List<Alerta> listarHistorial() throws SQLException {
-        List<Alerta> lista = new ArrayList<>();
-        String sql = "SELECT a.*, t.nombre AS tornillo_nombre, t.codigo AS tornillo_codigo " +
-                "FROM alertas a JOIN tornillos t ON a.tornillo_id=t.id " +
-                "ORDER BY a.creada_en DESC";
-        try (Statement st = DatabaseConfig.getConnection().createStatement();
-                ResultSet rs = st.executeQuery(sql)) {
-            while (rs.next())
-                lista.add(mapear(rs));
-        }
-        return lista;
-    }
-
-    public List<Alerta> buscar(String termino) throws SQLException {
-        List<Alerta> lista = new ArrayList<>();
-        String sql = "SELECT DISTINCT ON (a.tornillo_id) a.*, t.nombre AS tornillo_nombre, t.codigo AS tornillo_codigo "
-                +
-                "FROM alertas a JOIN tornillos t ON a.tornillo_id=t.id " +
-                "WHERE t.activo=true AND t.stock_actual <= t.stock_minimo " +
-                "AND (LOWER(t.nombre) LIKE ? OR LOWER(a.tipo) LIKE ? OR LOWER(a.mensaje) LIKE ?) " +
-                "ORDER BY a.tornillo_id, a.creada_en DESC";
-        String like = "%" + termino.toLowerCase() + "%";
-        try (PreparedStatement ps = DatabaseConfig.getConnection().prepareStatement(sql)) {
-            ps.setString(1, like);
-            ps.setString(2, like);
-            ps.setString(3, like);
-            try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next())
-                    lista.add(mapear(rs));
             }
         }
         return lista;
     }
 
-    public void marcarEnviadaEmail(int id) throws SQLException {
-        try (PreparedStatement ps = DatabaseConfig.getConnection()
-                .prepareStatement("UPDATE alertas SET enviada_email=true WHERE id=?")) {
-            ps.setInt(1, id);
-            ps.executeUpdate();
+    public int contarActivas() throws SQLException {
+        String sql = "SELECT COUNT(DISTINCT a.tornillo_id) FROM alertas a " +
+                     "JOIN tornillos t ON a.tornillo_id = t.id " +
+                     "WHERE t.activo = true AND t.stock_actual <= t.stock_minimo";
+        try (Statement st = DatabaseConfig.getConnection().createStatement();
+             ResultSet rs = st.executeQuery(sql)) {
+            if (rs.next()) {
+                return rs.getInt(1);
+            }
         }
+        return 0;
     }
 
-    public List<Alerta> listarNoEnviadas() throws SQLException {
+    public List<Alerta> buscar(String criterio) throws SQLException {
         List<Alerta> lista = new ArrayList<>();
-        String sql = "SELECT a.*, t.nombre AS tornillo_nombre, t.codigo AS tornillo_codigo " +
-                "FROM alertas a JOIN tornillos t ON a.tornillo_id=t.id " +
-                "WHERE a.enviada_email=false ORDER BY a.creada_en DESC";
-        try (Statement st = DatabaseConfig.getConnection().createStatement();
-                ResultSet rs = st.executeQuery(sql)) {
-            while (rs.next())
-                lista.add(mapear(rs));
+        String sql = "SELECT DISTINCT ON (a.tornillo_id) a.*, t.nombre AS tornillo_nombre, t.codigo AS tornillo_codigo " +
+                     "FROM alertas a " +
+                     "JOIN tornillos t ON a.tornillo_id = t.id " +
+                     "WHERE t.activo = true AND t.stock_actual <= t.stock_minimo " +
+                     "AND (LOWER(t.nombre) LIKE LOWER(?) OR LOWER(t.codigo) LIKE LOWER(?)) " +
+                     "ORDER BY a.tornillo_id, a.creada_en DESC";
+        try (PreparedStatement ps = DatabaseConfig.getConnection().prepareStatement(sql)) {
+            String p = "%" + criterio + "%";
+            ps.setString(1, p);
+            ps.setString(2, p);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    lista.add(mapear(rs));
+                }
+            }
         }
         return lista;
     }
 
     public Alerta buscarNoEnviada(int tornilloId, String tipo) throws SQLException {
         String sql = "SELECT a.*, t.nombre AS tornillo_nombre, t.codigo AS tornillo_codigo " +
-                "FROM alertas a JOIN tornillos t ON a.tornillo_id=t.id " +
-                "WHERE a.tornillo_id=? AND a.tipo=? AND a.enviada_email=false " +
-                "LIMIT 1";
+                     "FROM alertas a JOIN tornillos t ON a.tornillo_id=t.id " +
+                     "WHERE a.tornillo_id=? AND a.tipo=? AND a.enviada_email=false " +
+                     "LIMIT 1";
         try (PreparedStatement ps = DatabaseConfig.getConnection().prepareStatement(sql)) {
             ps.setInt(1, tornilloId);
             ps.setString(2, tipo);
@@ -150,6 +108,60 @@ public class AlertaDAO {
         return null;
     }
 
+    public void marcarComoEnviada(int id) throws SQLException {
+        String sql = "UPDATE alertas SET enviada_email=true WHERE id=?";
+        try (PreparedStatement ps = DatabaseConfig.getConnection().prepareStatement(sql)) {
+            ps.setInt(1, id);
+            ps.executeUpdate();
+        }
+    }
+
+    public List<Alerta> listarHistorialPorTornillo(int tornilloId) throws SQLException {
+        List<Alerta> lista = new ArrayList<>();
+        String sql = "SELECT a.*, t.nombre AS tornillo_nombre, t.codigo AS tornillo_codigo " +
+                     "FROM alertas a JOIN tornillos t ON a.tornillo_id=t.id " +
+                     "WHERE a.tornillo_id=? ORDER BY a.creada_en DESC";
+        try (PreparedStatement ps = DatabaseConfig.getConnection().prepareStatement(sql)) {
+            ps.setInt(1, tornilloId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next())
+                    lista.add(mapear(rs));
+            }
+        }
+        return lista;
+    }
+
+    // Método agregado para resolver error en AlertasPanel lineas 202 y 218
+    public List<Alerta> listarHistorial() throws SQLException {
+        List<Alerta> lista = new ArrayList<>();
+        String sql = "SELECT a.*, t.nombre AS tornillo_nombre, t.codigo AS tornillo_codigo " +
+                     "FROM alertas a JOIN tornillos t ON a.tornillo_id=t.id ORDER BY a.creada_en DESC";
+        try (Statement st = DatabaseConfig.getConnection().createStatement();
+             ResultSet rs = st.executeQuery(sql)) {
+            while (rs.next()) {
+                lista.add(mapear(rs));
+            }
+        }
+        return lista;
+    }
+
+    // Método agregado para resolver error en AlertasPanel linea 189
+    public void eliminar(int id) throws SQLException {
+        String sql = "DELETE FROM alertas WHERE id=?";
+        try (PreparedStatement ps = DatabaseConfig.getConnection().prepareStatement(sql)) {
+            ps.setInt(1, id);
+            ps.executeUpdate();
+        }
+    }
+
+    // Método agregado para resolver error en AlertasPanel linea 206
+    public void eliminarTodas() throws SQLException {
+        String sql = "DELETE FROM alertas";
+        try (Statement st = DatabaseConfig.getConnection().createStatement()) {
+            st.executeUpdate(sql);
+        }
+    }
+
     private Alerta mapear(ResultSet rs) throws SQLException {
         Alerta a = new Alerta();
         a.setId(rs.getInt("id"));
@@ -159,10 +171,10 @@ public class AlertaDAO {
         a.setTipo(rs.getString("tipo"));
         a.setMensaje(rs.getString("mensaje"));
         a.setEnviadaEmail(rs.getBoolean("enviada_email"));
-        java.sql.Timestamp c = rs.getTimestamp("creada_en");
-        if (c != null)
-            a.setCreadaEn(c.toLocalDateTime());
+        Timestamp ts = rs.getTimestamp("creada_en");
+        if (ts != null) {
+            a.setCreadaEn(ts.toLocalDateTime());
+        }
         return a;
     }
-
 }
