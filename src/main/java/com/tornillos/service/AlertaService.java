@@ -100,7 +100,7 @@ public class AlertaService {
                 String tipo = "STOCK_BAJO";
                 if (t.getStockActual() == 0) {
                     tipo = "SIN_STOCK";
-                } else if (t.getStockActual() <= t.getStockMinimo() * 0.3) {
+                } else if (t.getStockActual() <= t.getStockMinimo() * 0.5) {
                     tipo = "STOCK_CRITICO";
                 }
 

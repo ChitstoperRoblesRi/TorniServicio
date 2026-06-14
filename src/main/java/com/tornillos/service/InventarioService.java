@@ -46,11 +46,10 @@ public class InventarioService {
 
     /**
      * Elimina físicamente un tornillo del inventario central.
-     */
     public void eliminarTornilloPermanente(int id) throws SQLException {
         tornilloDAO.eliminar(id);
         alertaService.verificarAlertas();
-    }
+    }*/
 
     /**
      * Consulta el Kardex histórico de auditoría relacional con funciones de ventana de PostgreSQL.
