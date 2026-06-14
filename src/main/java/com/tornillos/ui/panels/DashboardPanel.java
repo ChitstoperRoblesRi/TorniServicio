@@ -1,29 +1,25 @@
 package com.tornillos.ui.panels;
 
 import com.tornillos.config.AppTheme;
-import com.tornillos.dao.AlertaDAO;
-import com.tornillos.dao.EntradaDAO;
-import com.tornillos.dao.SalidaDAO;
-import com.tornillos.dao.TornilloDAO;
-import com.tornillos.service.SessionManager;
 import com.tornillos.ui.MainFrame;
+import com.tornillos.service.SessionManager;
 
 import javax.swing.*;
 import java.awt.*;
-//import java.awt.event.*;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.sql.*;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public class DashboardPanel extends JPanel {
 
     private final MainFrame mainFrame;
-    private JLabel lblTotal, lblStockBajo, lblEntradas, lblSalidas, lblAlertas;
+    private JLabel lblTotal, lblSinStock, lblEntradas, lblSalidas, lblTopProducto;
     private JLabel lblLastUpdate;
-
-    private final TornilloDAO tornilloDAO = new TornilloDAO();
-    private final EntradaDAO entradaDAO = new EntradaDAO();
-    private final SalidaDAO salidaDAO = new SalidaDAO();
-    private final AlertaDAO alertaDAO = new AlertaDAO();
+    
+    // Sub-etiquetas descriptivas dinámicas de analítica
+    private JLabel lblDescCard1, lblDescCard2, lblDescCard3, lblDescCard4, lblDescCard5;
 
     private javax.swing.Timer autoRefreshTimer;
 
@@ -32,8 +28,11 @@ public class DashboardPanel extends JPanel {
         setBackground(AppTheme.BG_SURFACE);
         setLayout(new BorderLayout());
         buildUI();
+        
+        // Timer de refresco automático cada 30 segundos
         autoRefreshTimer = new javax.swing.Timer(30000, e -> refresh());
         autoRefreshTimer.start();
+        refresh(); // Carga inicial
     }
 
     private void buildUI() {
@@ -45,7 +44,6 @@ public class DashboardPanel extends JPanel {
         add(wrapper, BorderLayout.CENTER);
     }
 
-    // ── Header ────────────────────────────────────────────────
     private JPanel buildHeader() {
         JPanel h = new JPanel(new BorderLayout());
         h.setOpaque(false);
@@ -80,7 +78,6 @@ public class DashboardPanel extends JPanel {
         return h;
     }
 
-    // ── Body ──────────────────────────────────────────────────
     private JPanel buildBody() {
         JPanel body = new JPanel(new BorderLayout(0, 20));
         body.setOpaque(false);
@@ -89,19 +86,24 @@ public class DashboardPanel extends JPanel {
         JPanel kpiRow = new JPanel(new GridLayout(1, 5, 14, 0));
         kpiRow.setOpaque(false);
 
-        lblTotal = kpiValue("0");
-        lblStockBajo = kpiValue("0");
-        lblEntradas = kpiValue("0");
-        lblSalidas = kpiValue("0");
-        lblAlertas = kpiValue("0");
+        lblTotal = new JLabel("0");
+        lblSinStock = new JLabel("0");
+        lblEntradas = new JLabel("0");
+        lblSalidas = new JLabel("0");
+        lblTopProducto = new JLabel("Ninguno");
 
-        kpiRow.add(kpiCard("Total productos", lblTotal, AppTheme.ACCENT_LIGHT, "Ver inventario", "INVENTARIO"));
-        kpiRow.add(kpiCard("Stock bajo", lblStockBajo, AppTheme.WARNING, "Ver alertas", "ALERTAS"));
-        kpiRow.add(kpiCard("Entradas hoy", lblEntradas, AppTheme.SUCCESS_TEXT, "Registrar", "ENTRADAS"));
-        kpiRow.add(kpiCard("Salidas hoy", lblSalidas, AppTheme.DANGER_TEXT, "Registrar", "SALIDAS"));
-        kpiRow.add(kpiCard("Alertas activas", lblAlertas, AppTheme.WARNING_TEXT, "Ver alertas", "ALERTAS"));
+        lblDescCard1 = createDescLabel("Catálogo activo");
+        lblDescCard2 = createDescLabel("En stock crítico: 0");
+        lblDescCard3 = createDescLabel("Última: Ninguna");
+        lblDescCard4 = createDescLabel("Última: Ninguna");
+        lblDescCard5 = createDescLabel("Total: $0.00");
 
-        // Fila inferior
+        kpiRow.add(kpiMetricCard("Total productos", lblTotal, AppTheme.ACCENT_LIGHT, lblDescCard1, false));
+        kpiRow.add(kpiMetricCard("Sin Stock", lblSinStock, AppTheme.DANGER_TEXT, lblDescCard2, false));
+        kpiRow.add(kpiMetricCard("Entradas hoy", lblEntradas, AppTheme.SUCCESS_TEXT, lblDescCard3, false));
+        kpiRow.add(kpiMetricCard("Salidas hoy", lblSalidas, AppTheme.WARNING, lblDescCard4, false));
+        kpiRow.add(kpiMetricCard("Top Producto", lblTopProducto, AppTheme.GOLD, lblDescCard5, true));
+
         JPanel lower = new JPanel(new GridLayout(1, 2, 14, 0));
         lower.setOpaque(false);
         lower.add(buildAccionesRapidas());
@@ -112,61 +114,74 @@ public class DashboardPanel extends JPanel {
         return body;
     }
 
-    // ── Tarjeta KPI ───────────────────────────────────────────
-    private JPanel kpiCard(String label, JLabel valueLabel, Color accentColor,
-            String btnText, String navKey) {
-        JPanel card = new JPanel(new BorderLayout(0, 10)) {
+    private JPanel kpiMetricCard(String title, JLabel valueLabel, Color accentColor, JLabel descLabel, boolean esTextoLargo) {
+        JPanel card = new JPanel(new GridBagLayout()) {
             @Override
             protected void paintComponent(Graphics g) {
                 Graphics2D g2 = (Graphics2D) g.create();
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
                 g2.setColor(AppTheme.BG_CARD);
-                g2.fillRect(0, 0, getWidth(), getHeight());
-                // Borde izquierdo de color
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 8, 8);
+                // Línea indicadora izquierda
                 g2.setColor(accentColor);
                 g2.fillRect(0, 0, 3, getHeight());
-                // Borde exterior sutil
+                // Marco sutil redondeado
                 g2.setColor(AppTheme.BORDER);
                 g2.setStroke(new BasicStroke(0.5f));
-                g2.drawRect(0, 0, getWidth() - 1, getHeight() - 1);
+                g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 8, 8);
                 g2.dispose();
                 super.paintComponent(g);
             }
         };
         card.setOpaque(false);
-        card.setBorder(BorderFactory.createEmptyBorder(18, 18, 16, 18));
+        card.setBorder(BorderFactory.createEmptyBorder(12, 14, 12, 14));
+        card.setPreferredSize(new Dimension(180, 155));
 
-        // Label superior
-        JLabel lbl = new JLabel(label.toUpperCase());
-        lbl.setFont(AppTheme.FONT_LABEL);
-        lbl.setForeground(AppTheme.TEXT_MUTED);
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.gridx = 0;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.anchor = GridBagConstraints.NORTHWEST;
 
-        // Valor
-        valueLabel.setFont(new Font("Segoe UI", Font.BOLD, 34));
+        // 1. Título superior
+        JLabel lblTitle = new JLabel(title.toUpperCase());
+        lblTitle.setFont(AppTheme.FONT_LABEL);
+        lblTitle.setForeground(AppTheme.TEXT_SECONDARY);
+        gbc.gridy = 0;
+        gbc.weighty = 0.1;
+        card.add(lblTitle, gbc);
+
+        // 2. Valor Central
+        gbc.gridy = 1;
+        gbc.weighty = 0.5;
+        gbc.insets = new Insets(2, 0, 2, 0);
+        
+        if (esTextoLargo) {
+            valueLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        } else {
+            valueLabel.setFont(new Font("Segoe UI", Font.BOLD, 34));
+        }
         valueLabel.setForeground(accentColor);
+        card.add(valueLabel, gbc);
 
-        // Botón acción
-        JButton btn = AppTheme.secondaryButton(btnText);
-        btn.setFont(AppTheme.FONT_SMALL);
-        btn.addActionListener(e -> mainFrame.showPanel(navKey));
+        // 3. Etiqueta Informativa Inferior
+        gbc.gridy = 2;
+        gbc.weighty = 0.4;
+        gbc.weightx = 1.0;
+        gbc.insets = new Insets(0, 0, 0, 0);
+        card.add(descLabel, gbc);
 
-        card.add(lbl, BorderLayout.NORTH);
-        card.add(valueLabel, BorderLayout.CENTER);
-        card.add(btn, BorderLayout.SOUTH);
         return card;
     }
 
-    private JLabel kpiValue(String v) {
-        JLabel l = new JLabel(v);
-        l.setFont(new Font("Segoe UI", Font.BOLD, 34));
+    private JLabel createDescLabel(String defaultText) {
+        JLabel l = new JLabel(defaultText);
+        l.setFont(AppTheme.FONT_SMALL);
         l.setForeground(AppTheme.TEXT_PRIMARY);
         return l;
     }
 
-    // ── Acciones rápidas ─────────────────────────────────────
     private JPanel buildAccionesRapidas() {
         JPanel card = buildCard("Acciones rápidas");
-
         JPanel btns = new JPanel(new GridLayout(0, 1, 0, 8));
         btns.setOpaque(false);
 
@@ -184,39 +199,25 @@ public class DashboardPanel extends JPanel {
             String key = a[1];
             btn.addActionListener(e -> {
                 switch (key) {
-                    case "ENTRADAS":
-                        mainFrame.gatillarNuevaEntrada();
-                        break;
-                    case "SALIDAS":
-                        mainFrame.gatillarNuevaSalida();
-                        break;
-                    case "INVENTARIO":
-                        mainFrame.gatillarNuevoTornillo();
-                        break;
-                    case "REPORTES":
-                        mainFrame.gatillarReportes();
-                        break;
-                    default:
-                        mainFrame.showPanel(key);
-                        break;
+                    case "ENTRADAS": mainFrame.gatillarNuevaEntrada(); break;
+                    case "SALIDAS": mainFrame.gatillarNuevaSalida(); break;
+                    case "INVENTARIO": mainFrame.gatillarNuevoTornillo(); break;
+                    case "REPORTES": mainFrame.gatillarReportes(); break;
+                    default: mainFrame.showPanel(key); break;
                 }
             });
             btns.add(btn);
         }
-
         card.add(btns, BorderLayout.CENTER);
         return card;
     }
 
-    // ── Info sesión ───────────────────────────────────────────
     private JPanel buildInfoSesion() {
         JPanel card = buildCard("Información de sesión");
-
         JPanel info = new JPanel(new GridLayout(0, 1, 0, 10));
         info.setOpaque(false);
 
         var u = SessionManager.getInstance().getUsuarioActual();
-
         addInfoRow(info, "Usuario", u.getNombreCompleto());
         addInfoRow(info, "Rol", u.getRol());
         addInfoRow(info, "Última sesión",
@@ -224,7 +225,6 @@ public class DashboardPanel extends JPanel {
                         ? u.getUltimaSesion().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"))
                         : "Primera sesión");
 
-        // Indicador de rol
         JPanel rolBadgeRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
         rolBadgeRow.setOpaque(false);
         Color badgeBg = u.isGerente() ? AppTheme.ACCENT : new Color(0x1A2D1A);
@@ -256,17 +256,17 @@ public class DashboardPanel extends JPanel {
         p.add(wrap);
     }
 
-    // ── Helper tarjeta con título ─────────────────────────────
     private JPanel buildCard(String title) {
         JPanel card = new JPanel(new BorderLayout(0, 14)) {
             @Override
             protected void paintComponent(Graphics g) {
                 Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
                 g2.setColor(AppTheme.BG_CARD);
-                g2.fillRect(0, 0, getWidth(), getHeight());
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 8, 8);
                 g2.setColor(AppTheme.BORDER);
                 g2.setStroke(new BasicStroke(0.5f));
-                g2.drawRect(0, 0, getWidth() - 1, getHeight() - 1);
+                g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 8, 8);
                 g2.dispose();
                 super.paintComponent(g);
             }
@@ -287,32 +287,99 @@ public class DashboardPanel extends JPanel {
         return card;
     }
 
-    // ── Refresh ───────────────────────────────────────────────
     public void refresh() {
-        new SwingWorker<int[], Void>() {
+        new SwingWorker<Object[], Void>() {
             @Override
-            protected int[] doInBackground() throws Exception {
-                return new int[] {
-                        tornilloDAO.contarTotal(),
-                        tornilloDAO.contarStockBajo(),
-                        entradaDAO.contarHoy(),
-                        salidaDAO.contarHoy(),
-                        alertaDAO.contarActivas()
-                };
+            protected Object[] doInBackground() throws Exception {
+                int totalProductos = 0;
+                int sinStock = 0;
+                int criticoStock = 0;
+                int entradasHoy = 0;
+                int salidasHoy = 0;
+                String ultimaEntrada = "Ninguna";
+                String ultimaSalida = "Ninguna";
+                String topProducto = "Ninguno";
+                double topTotalGenerado = 0.0;
+
+                Connection conn = com.tornillos.config.DatabaseConfig.getConnection();
+
+                // 1. Estados Semánticos
+                String sqlInventario = "SELECT " +
+                        "  COUNT(*) FILTER (WHERE activo = true) AS total, " +
+                        "  COUNT(*) FILTER (WHERE activo = true AND stock_actual = 0) AS sin_stock, " +
+                        "  COUNT(*) FILTER (WHERE activo = true AND stock_actual <= stock_minimo / 2 AND stock_actual > 0) AS criticos " +
+                        "FROM tornillos";
+                try (Statement st = conn.createStatement(); ResultSet rs = st.executeQuery(sqlInventario)) {
+                    if (rs.next()) {
+                        totalProductos = rs.getInt("total");
+                        sinStock = rs.getInt("sin_stock");
+                        criticoStock = rs.getInt("criticos");
+                    }
+                }
+
+                // 2. Entradas del día
+                String sqlEntradasHoy = "SELECT COUNT(*), COALESCE((SELECT t.nombre FROM entradas e2 JOIN tornillos t ON e2.tornillo_id = t.id WHERE DATE(e2.fecha) = CURRENT_DATE ORDER BY e2.fecha DESC LIMIT 1), 'Ninguna') FROM entradas WHERE DATE(fecha) = CURRENT_DATE";
+                try (Statement st = conn.createStatement(); ResultSet rs = st.executeQuery(sqlEntradasHoy)) {
+                    if (rs.next()) {
+                        entradasHoy = rs.getInt(1);
+                        ultimaEntrada = rs.getString(2);
+                    }
+                }
+
+                // 3. Salidas del día
+                String sqlSalidasHoy = "SELECT COUNT(*), COALESCE((SELECT t.nombre FROM salidas s2 JOIN tornillos t ON s2.tornillo_id = t.id WHERE DATE(s2.fecha) = CURRENT_DATE ORDER BY s2.fecha DESC LIMIT 1), 'Ninguna') FROM salidas WHERE DATE(fecha) = CURRENT_DATE";
+                try (Statement st = conn.createStatement(); ResultSet rs = st.executeQuery(sqlSalidasHoy)) {
+                    if (rs.next()) {
+                        salidasHoy = rs.getInt(1);
+                        ultimaSalida = rs.getString(2);
+                    }
+                }
+
+                // 4. Producto Estrella del Día
+                String sqlTop = "SELECT t.nombre, SUM(s.total) AS total_dia " +
+                                "FROM salidas s JOIN tornillos t ON s.tornillo_id = t.id " +
+                                "WHERE DATE(s.fecha) = CURRENT_DATE " +
+                                "GROUP BY t.id, t.nombre ORDER BY total_dia DESC LIMIT 1";
+                try (Statement st = conn.createStatement(); ResultSet rs = st.executeQuery(sqlTop)) {
+                    if (rs.next()) {
+                        topProducto = rs.getString("nombre");
+                        topTotalGenerado = rs.getDouble("total_dia");
+                    }
+                }
+
+                return new Object[] { totalProductos, sinStock, criticoStock, entradasHoy, ultimaEntrada, salidasHoy, ultimaSalida, topProducto, topTotalGenerado };
             }
 
             @Override
             protected void done() {
                 try {
-                    int[] d = get();
+                    Object[] d = get();
+                    
+                    // Números KPI puros, limpios y gigantescos de vuelta en las primeras 4 tarjetas
                     lblTotal.setText(String.valueOf(d[0]));
-                    lblStockBajo.setText(String.valueOf(d[1]));
-                    lblEntradas.setText(String.valueOf(d[2]));
-                    lblSalidas.setText(String.valueOf(d[3]));
-                    lblAlertas.setText(String.valueOf(d[4]));
-                    lblLastUpdate.setText("Actualizado: " +
-                            LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss")));
-                } catch (Exception ignored) {
+                    lblSinStock.setText(String.valueOf(d[1]));
+                    lblEntradas.setText(String.valueOf(d[3]));
+                    lblSalidas.setText(String.valueOf(d[5]));
+                    
+                    // CORRECCIÓN VISUAL DE RETÍCULA: Fijamos un bloque de ancho estricto de 125px para evitar desbordamientos
+                    String prodEstrella = (String) d[7];
+                    lblTopProducto.setText("<html><p style='width: 125px; margin: 0; padding: 0; font-family: Segoe UI; font-weight: bold;'>" + prodEstrella + "</p></html>");
+
+                    lblDescCard1.setText("<html>Catálogo activo</html>");
+                    lblDescCard2.setText("<html>En stock crítico: <b style='color:#F0CC70;'>" + d[2] + "</b></html>");
+                    
+                    // CORRECCIÓN DE TARJETAS 3 Y 4: Envolturas HTML equilibradas con salto de línea libre sin truncar
+                    String ent = (String) d[4];
+                    lblDescCard3.setText("<html><p style='width: 125px; margin: 0; padding: 0;'>Última:<br><span style='color:#A0AABF; font-size:10px;'>" + ent + "</span></p></html>");
+                    
+                    String sal = (String) d[6];
+                    lblDescCard4.setText("<html><p style='width: 125px; margin: 0; padding: 0;'>Última:<br><span style='color:#A0AABF; font-size:10px;'>" + sal + "</span></p></html>");
+                    
+                    lblDescCard5.setText(String.format("<html>Total generado:<br><span style='color:#4DC99A; font-size:11px; font-weight:bold;'>$%.2f</span></html>", (Double) d[8]));
+
+                    lblLastUpdate.setText("Actualizado: " + LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss")));
+                } catch (Exception ex) {
+                    Logger.getLogger(DashboardPanel.class.getName()).log(Level.SEVERE, "Error al refrescar dashboard", ex);
                 }
             }
         }.execute();

@@ -170,13 +170,13 @@ public class TornilloDAO {
         }
     }
 
-    public void eliminar(int id) throws SQLException {
+    /*public void eliminar(int id) throws SQLException {
         try (PreparedStatement ps = DatabaseConfig.getConnection()
                 .prepareStatement("DELETE FROM tornillos WHERE id=?")) { 
             ps.setInt(1, id);
             ps.executeUpdate();
         }
-    }
+    } */
 
     public int contarTotal() throws SQLException {
         try (Statement st = DatabaseConfig.getConnection().createStatement();
