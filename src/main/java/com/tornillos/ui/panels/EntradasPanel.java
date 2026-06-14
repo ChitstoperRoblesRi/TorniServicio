@@ -49,7 +49,10 @@ public class EntradasPanel extends JPanel {
     private final MainFrame mainFrame;
     private JTable table;
     private DefaultTableModel tableModel;
-    private JTextField txtBuscar, txtDesde, txtHasta;
+    private JTextField txtBuscar;
+    private javax.swing.JFormattedTextField txtDesde, txtHasta;
+    private final java.time.format.DateTimeFormatter filterFormatter = java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd");
+    private final java.time.format.DateTimeFormatter visualFormatter = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
     private JLabel lblConteo;
     private SwingWorker<?, ?> currentWorker;
 
@@ -114,28 +117,95 @@ public class EntradasPanel extends JPanel {
                 buscar();
             }
         });
-        txtDesde = AppTheme.styledField("Desde YYYY-MM-DD");
+        // --- NUEVA CONFIGURACIÓN DE FECHAS DE REPORTE (ÚLTIMOS 30 DÍAS) ---
+        java.time.LocalDate hoy = java.time.LocalDate.now();
+        java.time.LocalDate haceUnMes = hoy.minusDays(30);
+
+        try {
+            javax.swing.text.MaskFormatter mascaraFecha = new javax.swing.text.MaskFormatter("####-##-##");
+            mascaraFecha.setPlaceholderCharacter('_');
+            txtDesde = new javax.swing.JFormattedTextField(mascaraFecha);
+        } catch (java.text.ParseException ex) {
+            txtDesde = new javax.swing.JFormattedTextField();
+        }
+        txtDesde.setText(haceUnMes.format(filterFormatter));
         txtDesde.setPreferredSize(new Dimension(150, 34));
+        txtDesde.setBackground(AppTheme.BG_CARD_HOVER);
+        txtDesde.setForeground(AppTheme.TEXT_PRIMARY);
+        txtDesde.setCaretColor(AppTheme.GOLD_LIGHT);
+        txtDesde.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(AppTheme.BORDER, 1),
+            BorderFactory.createEmptyBorder(0, 8, 0, 8)
+        ));
+        txtDesde.addFocusListener(new java.awt.event.FocusAdapter() {
+            @Override
+            public void focusGained(java.awt.event.FocusEvent e) {
+                txtDesde.setBorder(BorderFactory.createCompoundBorder(
+                    BorderFactory.createLineBorder(AppTheme.GOLD_LIGHT, 1),
+                    BorderFactory.createEmptyBorder(0, 8, 0, 8)
+                ));
+            }
+            @Override
+            public void focusLost(java.awt.event.FocusEvent e) {
+                txtDesde.setBorder(BorderFactory.createCompoundBorder(
+                    BorderFactory.createLineBorder(AppTheme.BORDER, 1),
+                    BorderFactory.createEmptyBorder(0, 8, 0, 8)
+                ));
+            }
+        });
         txtDesde.addKeyListener(new KeyAdapter() {
             @Override public void keyPressed(KeyEvent e) {
                 if (e.getKeyCode() == KeyEvent.VK_ENTER) refresh();
             }
         });
-        txtHasta = AppTheme.styledField("Hasta YYYY-MM-DD");
+
+        try {
+            javax.swing.text.MaskFormatter mascaraFecha2 = new javax.swing.text.MaskFormatter("####-##-##");
+            mascaraFecha2.setPlaceholderCharacter('_');
+            txtHasta = new javax.swing.JFormattedTextField(mascaraFecha2);
+        } catch (java.text.ParseException ex) {
+            txtHasta = new javax.swing.JFormattedTextField();
+        }
+        txtHasta.setText(hoy.format(filterFormatter));
         txtHasta.setPreferredSize(new Dimension(150, 34));
+        txtHasta.setBackground(AppTheme.BG_CARD_HOVER);
+        txtHasta.setForeground(AppTheme.TEXT_PRIMARY);
+        txtHasta.setCaretColor(AppTheme.GOLD_LIGHT);
+        txtHasta.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(AppTheme.BORDER, 1),
+            BorderFactory.createEmptyBorder(0, 8, 0, 8)
+        ));
+        txtHasta.addFocusListener(new java.awt.event.FocusAdapter() {
+            @Override
+            public void focusGained(java.awt.event.FocusEvent e) {
+                txtHasta.setBorder(BorderFactory.createCompoundBorder(
+                    BorderFactory.createLineBorder(AppTheme.GOLD_LIGHT, 1),
+                    BorderFactory.createEmptyBorder(0, 8, 0, 8)
+                ));
+            }
+            @Override
+            public void focusLost(java.awt.event.FocusEvent e) {
+                txtHasta.setBorder(BorderFactory.createCompoundBorder(
+                    BorderFactory.createLineBorder(AppTheme.BORDER, 1),
+                    BorderFactory.createEmptyBorder(0, 8, 0, 8)
+                ));
+            }
+        });
         txtHasta.addKeyListener(new KeyAdapter() {
             @Override public void keyPressed(KeyEvent e) {
                 if (e.getKeyCode() == KeyEvent.VK_ENTER) refresh();
             }
         });
+        // ------------------------------------------------------------------
 
         JButton btnFiltrar = AppTheme.primaryButton("Filtrar");
         JButton btnLimpiar = AppTheme.secondaryButton("X Limpiar");
         btnFiltrar.addActionListener(e -> refresh());
         btnLimpiar.addActionListener(e -> {
             txtBuscar.setText("");
-            txtDesde.setText("");
-            txtHasta.setText("");
+            java.time.LocalDate dHoy = java.time.LocalDate.now();
+            txtDesde.setText(dHoy.minusDays(30).format(filterFormatter));
+            txtHasta.setText(dHoy.format(filterFormatter));
             refresh();
         });
 
@@ -166,10 +236,40 @@ public class EntradasPanel extends JPanel {
                     c.setBackground(AppTheme.ACCENT);
                     c.setForeground(AppTheme.GOLD_LIGHT);
                 }
+
+                // REEMPLAZAR ESTA PARTE DENTRO DEL prepareRenderer (Líneas ~184-194):
+                if (c instanceof JLabel) {
+                    JLabel label = (JLabel) c;
+                    
+                    if (col == 4) {
+                        // Columna 4 es "Cantidad": Centrada y en negrita
+                        label.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
+                        label.setFont(label.getFont().deriveFont(Font.BOLD));
+                    } else if (col == 5 || col == 6) {
+                        // 🌟 CORREGIDO: Columnas 5 y 6 (P.Unitario y Total) ahora centradas
+                        label.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
+                        label.setFont(label.getFont().deriveFont(Font.PLAIN));
+                    } else {
+                        // El resto de las columnas (Folio, Tornillo, Código, Usuario, Fecha) a la izquierda
+                        label.setHorizontalAlignment(javax.swing.SwingConstants.LEFT);
+                    }
+                }
                 return c;
             }
         };
         AppTheme.styleTable(table);
+
+        // 🌟 NUEVO: Centrar los títulos de los encabezados de Cantidad, P.Unitario y Total
+        for (int col : new int[]{4, 5, 6}) {
+            table.getColumnModel().getColumn(col).setHeaderRenderer((t, val, sel, focus, r, c) -> {
+                Component comp = t.getTableHeader().getDefaultRenderer().getTableCellRendererComponent(t, val, sel, focus, r, c);
+                if (comp instanceof JLabel) {
+                    ((JLabel) comp).setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
+                }
+                return comp;
+            });
+        }
+
         table.getColumnModel().getColumn(0).setMinWidth(0);
         table.getColumnModel().getColumn(0).setMaxWidth(0);
 
@@ -470,12 +570,18 @@ public class EntradasPanel extends JPanel {
     private void poblarTabla(List<Entrada> lista) {
         tableModel.setRowCount(0);
         for (Entrada e : lista) {
+            // Aplicación del formateador bidireccional humano
+            String fechaFormateada = "";
+            if (e.getFecha() != null) {
+                fechaFormateada = e.getFecha().format(visualFormatter);
+            }
+
             tableModel.addRow(new Object[] {
                     e.getId(), e.getFolio(),
                     e.getTornilloNombre(), e.getTornilloCodigo(),
                     e.getCantidad(), e.getPrecioUnitario(), e.getTotal(),
                     e.getUsuarioNombre(),
-                    e.getFecha() != null ? e.getFecha().toString().substring(0, 16) : ""
+                    fechaFormateada // Inyección del string formateado limpiamente
             });
         }
         lblConteo.setText(lista.size() + " entrada(s)");
@@ -488,10 +594,12 @@ public class EntradasPanel extends JPanel {
             @Override
             protected List<Entrada> doInBackground() throws Exception {
                 String termino = txtBuscar.getText().trim();
-                String desde = txtDesde.getText().trim().isEmpty() ? null : txtDesde.getText().trim();
-                String hasta = txtHasta.getText().trim().isEmpty() ? null : txtHasta.getText().trim();
+                String rawDesde = txtDesde.getText().trim();
+                String rawHasta = txtHasta.getText().trim();
                 
-                // Cambiado: Consumo seguro a través de la Capa de Servicios
+                String desde = (rawDesde.isEmpty() || rawDesde.contains("_")) ? null : rawDesde;
+                String hasta = (rawHasta.isEmpty() || rawHasta.contains("_")) ? null : rawHasta;
+                
                 return entradaService.buscarEntradas(termino, desde, hasta);
             }
 
