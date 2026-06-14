@@ -18,7 +18,7 @@ public class DatabaseConfig {
     private static String PORT = "5432";
     private static String DATABASE = "tornillos_db";
     private static String USER = "postgres";
-    private static String PASSWORD = "1234"; // <----escriba su contraseña de postgres aquí
+    private static String PASSWORD = "Josuemysql22*"; // <----escriba su contraseña de postgres aquí
 
     private static Connection connection;
 

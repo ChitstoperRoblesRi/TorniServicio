@@ -61,7 +61,8 @@ public class SalidaDAO {
     }
 
     public int contarHoy() throws SQLException {
-        String sql = "SELECT COUNT(*) FROM salidas WHERE DATE(fecha)=CURRENT_DATE";
+        // CORRECCIÓN: Contamos únicamente egresos activos del día
+        String sql = "SELECT COUNT(*) FROM salidas WHERE DATE(fecha)=CURRENT_DATE AND activo = true";
         try (Statement st = DatabaseConfig.getConnection().createStatement();
              ResultSet rs = st.executeQuery(sql)) {
             return rs.next() ? rs.getInt(1) : 0;
@@ -74,7 +75,7 @@ public class SalidaDAO {
         try {
             int tornilloId = 0, cantidad = 0;
             try (PreparedStatement ps = conn.prepareStatement(
-                    "SELECT tornillo_id, cantidad FROM salidas WHERE id=?")) {
+                    "SELECT tornillo_id, cantidad FROM salidas WHERE id=? AND activo = true")) {
                 ps.setInt(1, id);
                 try (ResultSet rs = ps.executeQuery()) {
                     if (rs.next()) {
@@ -88,8 +89,11 @@ public class SalidaDAO {
                 ps.setInt(1, cantidad); ps.setInt(2, tornilloId);
                 ps.executeUpdate();
             }
-            try (PreparedStatement ps = conn.prepareStatement("DELETE FROM salidas WHERE id=?")) {
-                ps.setInt(1, id); ps.executeUpdate();
+            
+            // CORRECCIÓN TRANSACCIONAL: Cambiado el DELETE destructivo por un UPDATE lógico de auditoría
+            try (PreparedStatement ps = conn.prepareStatement("UPDATE salidas SET activo = false WHERE id=?")) {
+                ps.setInt(1, id); 
+                ps.executeUpdate();
             }
             conn.commit();
         } catch (SQLException ex) {
@@ -108,7 +112,7 @@ public class SalidaDAO {
             "CONCAT(u.nombre,' ',u.apellido) AS usuario_nombre " +
             "FROM salidas s " +
             "JOIN tornillos t ON s.tornillo_id=t.id " +
-            "JOIN usuarios u ON s.usuario_id=u.id WHERE 1=1 ");
+            "JOIN usuarios u ON s.usuario_id=u.id WHERE s.activo = true "); // CORRECCIÓN: Filtro de exclusión activa
         
         List<Object> params = new ArrayList<>();
         if (termino != null && !termino.isEmpty()) {
