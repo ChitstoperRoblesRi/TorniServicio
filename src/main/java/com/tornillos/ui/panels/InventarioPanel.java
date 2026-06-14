@@ -25,6 +25,7 @@ import javax.swing.JPopupMenu;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
 import javax.swing.JTextField;
+import javax.swing.JViewport;
 import javax.swing.SwingUtilities;
 import javax.swing.SwingWorker;
 import javax.swing.table.DefaultTableModel;
@@ -275,7 +276,11 @@ public class InventarioPanel extends JPanel {
             }
         });
 
-        return AppTheme.darkScrollPane(table);
+        // Solución al glitch visual de renderizado al hacer scroll
+        JScrollPane scrollPane = AppTheme.darkScrollPane(table);
+        scrollPane.getViewport().setScrollMode(JViewport.SIMPLE_SCROLL_MODE);
+        
+        return scrollPane;
     }
 
     private JPopupMenu buildContextMenu() {

@@ -31,6 +31,7 @@ import javax.swing.JScrollPane;
 import javax.swing.JTable;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
+import javax.swing.JViewport;
 import javax.swing.SwingUtilities;
 import javax.swing.SwingWorker;
 import javax.swing.table.DefaultTableModel;
@@ -198,7 +199,11 @@ public class EntradasPanel extends JPanel {
             }
         });
 
-        p.add(AppTheme.darkScrollPane(table), BorderLayout.CENTER);
+        // Solución al glitch visual de renderizado al hacer scroll
+        JScrollPane scrollPane = AppTheme.darkScrollPane(table);
+        scrollPane.getViewport().setScrollMode(JViewport.SIMPLE_SCROLL_MODE);
+        
+        p.add(scrollPane, BorderLayout.CENTER);
         return p;
     }
 

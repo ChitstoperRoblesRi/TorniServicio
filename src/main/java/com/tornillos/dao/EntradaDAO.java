@@ -1,11 +1,16 @@
 package com.tornillos.dao;
 
-import com.tornillos.config.DatabaseConfig;
-import com.tornillos.model.Entrada;
-
-import java.sql.*;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.List;
+
+import com.tornillos.config.DatabaseConfig;
+import com.tornillos.model.Entrada;
 
 public class EntradaDAO {
 
@@ -38,6 +43,7 @@ public class EntradaDAO {
             throw ex;
         } finally {
             conn.setAutoCommit(true);
+            conn.close();
         }
     }
 
@@ -89,6 +95,7 @@ public class EntradaDAO {
             throw ex;
         } finally {
             conn.setAutoCommit(true);
+            conn.close();
         }
     }
 
