@@ -532,33 +532,82 @@ public class InventarioPanel extends JPanel {
         buscarConFiltro();
     }
 
+    // ── Motor de Conversión y Formateo de Medidas Comerciales ────────────────
+
     private String formatearMedida(java.math.BigDecimal valor, String sistemaMedida) {
         if (valor == null) return "";
         
         if ("IMPERIAL".equalsIgnoreCase(sistemaMedida)) {
-            double val = valor.doubleValue();
-            int entero = (int) val;
-            double decimal = val - entero;
-
-            String fraccion = "";
-            if (Math.abs(decimal - 0.0625) < 0.001) fraccion = "1/16";
-            else if (Math.abs(decimal - 0.125) < 0.001)  fraccion = "1/8";
-            else if (Math.abs(decimal - 0.1875) < 0.001) fraccion = "3/16";
-            else if (Math.abs(decimal - 0.25) < 0.001)   fraccion = "1/4";
-            else if (Math.abs(decimal - 0.3125) < 0.001) fraccion = "5/16";
-            else if (Math.abs(decimal - 0.375) < 0.001)  fraccion = "3/8";
-            else if (Math.abs(decimal - 0.5) < 0.001)    fraccion = "1/2";
-            else if (Math.abs(decimal - 0.625) < 0.001)  fraccion = "5/8";
-            else if (Math.abs(decimal - 0.75) < 0.001)   fraccion = "3/4";
-            else if (Math.abs(decimal - 0.875) < 0.001)  fraccion = "7/8";
-
-            if (entero > 0) {
-                return fraccion.isEmpty() ? valor.toPlainString() + "\"" : entero + " " + fraccion + "\"";
-            } else {
-                return fraccion.isEmpty() ? valor.toPlainString() + "\"" : fraccion + "\"";
-            }
+            // 🌟 1. El valor viene de la base de datos en milímetros, lo convertimos a pulgadas
+            java.math.BigDecimal mmAInches = new java.math.BigDecimal("25.4");
+            java.math.BigDecimal valorPulgadas = valor.divide(mmAInches, java.math.MathContext.DECIMAL64);
+            
+            // 🌟 2. Lo traducimos a fracción dinámica y le concatenamos las comillas de pulgadas (")
+            return convertirDecimalAFraccion(valorPulgadas) + "\"";
         }
         
+        // Formato métrico estándar
         return valor.stripTrailingZeros().toPlainString() + " mm";
+    }
+
+    /**
+     * Toma un valor decimal en pulgadas y descubre de forma dinámica su fracción comercial 
+     * más cercana (simplificando automáticamente a denominadores de 2, 4, 8, 16, 32 o 64).
+     */
+    private String convertirDecimalAFraccion(java.math.BigDecimal valor) {
+        if (valor == null) return "";
+
+        // Separar la parte entera del residuo decimal
+        int entero = valor.intValue();
+        java.math.BigDecimal residuo = valor.subtract(new java.math.BigDecimal(entero));
+
+        // Si es un entero puro (ej: 2 pulgadas -> "2")
+        if (residuo.compareTo(java.math.BigDecimal.ZERO) == 0) {
+            return String.valueOf(entero);
+        }
+
+        // Denominadores comerciales del ramo ferretero
+        int[] denominadoresComerciales = {2, 4, 8, 16, 32, 64};
+        double valorDecimal = residuo.doubleValue();
+
+        int mejorNumerador = 0;
+        int mejorDenominador = 1;
+        double menorError = 1.0;
+
+        // Buscar la combinación con menor margen de error con tolerancia estricta
+        for (int d : denominadoresComerciales) {
+            long n = Math.round(valorDecimal * d);
+            double error = Math.abs(valorDecimal - ((double) n / d));
+            
+            if (error < menorError && error < 0.005) { 
+                menorError = error;
+                mejorNumerador = (int) n;
+                mejorDenominador = d;
+            }
+        }
+
+        // Si el número no corresponde a una fracción estándar, devolvemos el decimal plano limpio
+        if (mejorNumerador == 0) {
+            return valor.stripTrailingZeros().toPlainString();
+        }
+
+        // Simplificar la fracción mediante el Máximo Común Divisor (MCD)
+        int mcd = calcularMCD(mejorNumerador, mejorDenominador);
+        mejorNumerador /= mcd;
+        mejorDenominador /= mcd;
+
+        // Construir la cadena legible (soporta números mixtos como "1 1/2")
+        StringBuilder resultado = new StringBuilder();
+        if (entero > 0) {
+            resultado.append(entero).append(" ");
+        }
+        resultado.append(mejorNumerador).append("/").append(mejorDenominador);
+
+        return resultado.toString();
+    }
+
+    /** Algoritmo de Euclides para simplificar fracciones */
+    private int calcularMCD(int a, int b) {
+        return b == 0 ? a : calcularMCD(b, a % b);
     }
 }

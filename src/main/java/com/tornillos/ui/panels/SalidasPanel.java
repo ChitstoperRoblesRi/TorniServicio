@@ -60,7 +60,7 @@ public class SalidasPanel extends JPanel {
     // Cambiado: Ahora la interfaz depende estrictamente de su capa de servicio dedicada
     private final SalidaService salidaService = new SalidaService();
 
-    private final String[] MOTIVOS = {"Venta","Uso Interno","Muestra","Devolucion","Merma","Otro"};
+    private final String[] MOTIVOS = {"Venta","Uso Interno","Muestra","Devolucion","Merma"};
 
     public SalidasPanel(MainFrame frame) {
         this.mainFrame = frame;
@@ -309,12 +309,20 @@ public class SalidasPanel extends JPanel {
         lblStock.setFont(AppTheme.FONT_SMALL);
         lblStock.setForeground(AppTheme.SUCCESS_TEXT);
         cmbTornillo.addActionListener(e -> {
-            Tornillo t = (Tornillo) cmbTornillo.getSelectedItem();
-            if (t != null) {
+            // 🌟 CLAVE: Obtenemos la selección como Object genérico primero
+            Object seleccionadoObj = cmbTornillo.getSelectedItem();
+            
+            // Solo procesamos si el usuario seleccionó un Tornillo real del catálogo
+            if (seleccionadoObj instanceof Tornillo) {
+                Tornillo t = (Tornillo) seleccionadoObj;
                 int stock = t.getStockActual();
                 lblStock.setText("Stock disponible: " + stock + " " + t.getUnidadMedida());
                 lblStock.setForeground(stock <= t.getStockMinimo() ? AppTheme.WARNING : AppTheme.SUCCESS_TEXT);
                 if (t.getPrecioVenta() != null) txtPrecio.setText(t.getPrecioVenta().toString());
+            } else {
+                // Si es texto libre temporal del buscador, limpiamos la etiqueta de stock preventivamente
+                lblStock.setText("Stock disponible: --");
+                lblStock.setForeground(AppTheme.SUCCESS_TEXT);
             }
         });
         cmbTornillo.setSelectedIndex(-1);
@@ -342,6 +350,7 @@ public class SalidasPanel extends JPanel {
             @Override public Insets getBorderInsets(Component c) { return new Insets(2, 2, 2, 2); }
             @Override public boolean isBorderOpaque() { return false; }
         });
+        unificarEstiloEditorCombo(cmbTornillo, true);
 
         String folio = FolioGenerator.generarSalida();
         JTextField txtFolio = AppTheme.styledField(folio);
@@ -368,6 +377,29 @@ public class SalidasPanel extends JPanel {
                 int cantidad = Integer.parseInt(txtCantidad.getText().trim());
                 BigDecimal precio = new BigDecimal(txtPrecio.getText().trim());
                 if (cantidad <= 0) throw new IllegalArgumentException("Cantidad debe ser mayor a 0");
+                if (precio.compareTo(BigDecimal.ZERO) <= 0)
+                    throw new IllegalArgumentException("El precio unitario debe ser un número positivo mayor a 0.");
+
+                String motivo = cmbMotivo.getSelectedItem() != null ? cmbMotivo.getSelectedItem().toString() : "";
+                boolean motivoValido = java.util.Arrays.asList(MOTIVOS).contains(motivo);
+                if (!motivoValido) throw new IllegalArgumentException("Seleccione un motivo válido de la lista.");
+
+                BigDecimal totalCalculado = precio.multiply(BigDecimal.valueOf(cantidad));
+                String resumenTicket = String.format(
+                    "¿Confirmar el registro de esta Salida / Venta?\n\n" +
+                    "▪ Producto:  %s\n" +
+                    "▪ Motivo:    %s\n" +
+                    "▪ Cantidad:  %d unidades\n" +
+                    "▪ P. Unitario: $%,.2f\n" +
+                    "▪ Total Operación: $%,.2f\n\n" +
+                    "Esta acción descontará las existencias de forma inmediata.",
+                    t.getNombre(), motivo, cantidad, precio, totalCalculado
+                );
+                int confirmacion = JOptionPane.showConfirmDialog(
+                    dlg, resumenTicket, "Confirmar Salida de Almacén",
+                    JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE
+                );
+                if (confirmacion != JOptionPane.YES_OPTION) return;
 
                 Salida s = new Salida();
                 s.setFolio(folio);
@@ -376,9 +408,6 @@ public class SalidasPanel extends JPanel {
                 s.setCantidad(cantidad);
                 s.setPrecioUnitario(precio);
                 s.setTotal(precio.multiply(BigDecimal.valueOf(cantidad)));
-                String motivo = cmbMotivo.getSelectedItem() != null ? cmbMotivo.getSelectedItem().toString() : "";
-                boolean motivoValido = java.util.Arrays.asList(MOTIVOS).contains(motivo);
-                if (!motivoValido) throw new IllegalArgumentException("Seleccione un motivo válido de la lista.");
                 s.setMotivo(motivo);
                 s.setCliente(txtCliente.getText().trim());
                 s.setObservaciones(txtObs.getText().trim());
@@ -410,6 +439,45 @@ public class SalidasPanel extends JPanel {
         p.add(AppTheme.label(label), gbc);
         gbc.gridx = 1; gbc.weightx = 1.0;
         p.add(field, gbc);
+    }
+
+    /**
+     * Modifica los componentes visuales del editor interno del JComboBox para adaptarlo
+     * al tema oscuro sin alterar ni destruir los listeners funcionales del componente.
+     */
+    private void unificarEstiloEditorCombo(JComboBox<?> combo, boolean esBuscable) {
+        // 🌟 CLAVE: Obtenemos el componente editor actual en lugar de destruirlo con setEditor()
+        Component editorComp = combo.getEditor().getEditorComponent();
+        
+        if (editorComp instanceof JTextField) {
+            JTextField txt = (JTextField) editorComp;
+            
+            // Aplicamos los colores del tema oscuro premium
+            txt.setBackground(AppTheme.BG_CARD_HOVER);
+            txt.setForeground(AppTheme.TEXT_PRIMARY);
+            txt.setBorder(BorderFactory.createEmptyBorder(2, 6, 2, 6)); // Padding interno
+            
+            // Si es buscable (como los tornillos), permitimos la edición. 
+            // Si no (como los motivos), se bloquea para que actúe como dropdown cerrado.
+            txt.setEditable(esBuscable);
+            
+            // El MouseListener de despliegue automático solo se añade si NO es buscable.
+            // Si es buscable, el usuario necesita hacer clic para posicionar el cursor y escribir.
+            if (!esBuscable) {
+                txt.addMouseListener(new java.awt.event.MouseAdapter() {
+                    @Override
+                    public void mousePressed(java.awt.event.MouseEvent e) {
+                        if (combo.isEnabled()) {
+                            if (combo.isPopupVisible()) combo.hidePopup();
+                            else combo.showPopup();
+                        }
+                    }
+                });
+            }
+        }
+        
+        // Forzamos a que el combo reconozca que debe pintar su editor interno
+        combo.setEditable(true);
     }
 
     private void poblarTabla(List<Salida> lista) {

@@ -84,6 +84,11 @@ public class ReportesPanel extends JPanel {
 
         cmbTipo = AppTheme.styledCombo(TIPOS_MOVIMIENTO);
         cmbTipo.setPreferredSize(new Dimension(200, 34));
+        
+        // 🌟 NUEVO: Aplicamos la arquitectura Look and Feel premium personalizada
+        aplicarEstiloPremiumCombo(cmbTipo);
+        
+        // El listener secundario se registra después para que la sincronización ocurra primero
         cmbTipo.addActionListener(e -> refresh());
 
         controls.add(AppTheme.label("Tipo:"));
@@ -216,5 +221,66 @@ public class ReportesPanel extends JPanel {
             JOptionPane.showMessageDialog(this,
                     "Error al exportar: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
         }
+    }
+
+    /**
+     * Aplica una arquitectura de renderizado premium y agnóstica al sistema operativo
+     * para JComboBox en entornos oscuros, evitando fugas de color del Look and Feel nativo.
+     */
+    private void aplicarEstiloPremiumCombo(javax.swing.JComboBox<String> combo) {
+        // 1. Reemplazar la UI Nativa (BasicComboBoxUI) y sobreescribir la flecha
+        combo.setUI(new javax.swing.plaf.basic.BasicComboBoxUI() {
+            @Override
+            protected JButton createArrowButton() {
+                JButton btn = new JButton("▼");
+                btn.setFont(new Font("Segoe UI", Font.PLAIN, 10));
+                btn.setForeground(AppTheme.BG_BASE);
+                btn.setBackground(AppTheme.BG_CARD_HOVER);
+                btn.setBorder(BorderFactory.createEmptyBorder(2, 6, 2, 6));
+                btn.setContentAreaFilled(true);
+                btn.setFocusable(false);
+                return btn;
+            }
+        });
+
+        // 2. Borde del Contenedor fino y consistente
+        combo.setBorder(BorderFactory.createLineBorder(new Color(100, 100, 100)));
+
+        // 3. Parche del Editor de Texto Interno (Fondo oscuro, texto claro y no editable)
+        combo.setEditor(new javax.swing.plaf.basic.BasicComboBoxEditor() {
+            @Override
+            protected JTextField createEditorComponent() {
+                JTextField txt = new JTextField();
+                txt.setBackground(AppTheme.BG_CARD_HOVER);
+                txt.setForeground(AppTheme.TEXT_PRIMARY);
+                txt.setEditable(false); // Bloqueo estricto de escritura libre
+                txt.setBorder(BorderFactory.createEmptyBorder(2, 6, 2, 6)); // Padding
+                
+                // MouseListener para desplegar/cerrar el dropdown al hacer clic en el texto
+                txt.addMouseListener(new java.awt.event.MouseAdapter() {
+                    @Override
+                    public void mousePressed(java.awt.event.MouseEvent e) {
+                        if (combo.isEnabled()) {
+                            if (combo.isPopupVisible()) {
+                                combo.hidePopup();
+                            } else {
+                                combo.showPopup();
+                            }
+                        }
+                    }
+                });
+                return txt;
+            }
+        });
+        combo.setEditable(true);
+
+        // 4. Sincronización inicial y Listener de Acción preventivo
+        Object inicial = combo.getSelectedItem();
+        combo.getEditor().setItem(inicial != null ? inicial.toString() : "");
+
+        combo.addActionListener(e -> {
+            Object item = combo.getSelectedItem();
+            combo.getEditor().setItem(item != null ? item.toString() : "");
+        });
     }
 }
