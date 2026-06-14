@@ -299,9 +299,9 @@ public class InventarioPanel extends JPanel {
             altaItem.setForeground(AppTheme.SUCCESS_TEXT);
             altaItem.addActionListener(ev -> reactivarTornillo());
 
-            JMenuItem eliminarItem = AppTheme.darkMenuItem("Eliminar permanentemente", null);
+            /*JMenuItem eliminarItem = AppTheme.darkMenuItem("Eliminar permanentemente", null);
             eliminarItem.setForeground(AppTheme.DANGER_TEXT);
-            eliminarItem.addActionListener(ev -> eliminarSeleccionado());
+            eliminarItem.addActionListener(ev -> eliminarSeleccionado());*/
 
             popup.addPopupMenuListener(new javax.swing.event.PopupMenuListener() {
                 @Override
@@ -323,7 +323,7 @@ public class InventarioPanel extends JPanel {
                     }
 
                     popup.add(AppTheme.darkSeparator());
-                    popup.add(eliminarItem);
+                    //popup.add(eliminarItem);
                     popup.pack();
                 }
 
@@ -417,7 +417,7 @@ public class InventarioPanel extends JPanel {
         }
     }
 
-    private void eliminarSeleccionado() {
+    /*private void eliminarSeleccionado() {
         int row = table.getSelectedRow();
         if (row < 0) return;
         int id = (int) tableModel.getValueAt(row, 0);
@@ -434,7 +434,7 @@ public class InventarioPanel extends JPanel {
         } catch (Exception ex) {
             JOptionPane.showMessageDialog(this, "Error: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
         }
-    }
+    }*/
 
     public void abrirDialogo(Tornillo tornillo) {
         TornilloDialog dlg = new TornilloDialog((JFrame) SwingUtilities.getWindowAncestor(this), tornillo);
