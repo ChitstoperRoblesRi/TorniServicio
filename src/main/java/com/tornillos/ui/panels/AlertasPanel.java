@@ -3,7 +3,6 @@ package com.tornillos.ui.panels;
 import com.tornillos.config.AppTheme;
 import com.tornillos.model.Alerta;
 import com.tornillos.service.AlertaService;
-import com.tornillos.service.SessionManager;
 import com.tornillos.ui.MainFrame;
 
 import javax.swing.*;
@@ -60,11 +59,7 @@ public class AlertasPanel extends JPanel {
         JButton btnHistorial = AppTheme.secondaryButton("Ver historial");
         btnHistorial.addActionListener(e -> mostrarHistorial());
 
-        if (SessionManager.getInstance().isGerente()) {
-            JButton btnEliminarTodas = AppTheme.dangerButton("Eliminar todas");
-            btnEliminarTodas.addActionListener(e -> eliminarTodas());
-            right.add(btnEliminarTodas);
-        }
+        // CORRECCIÓN: Se removió por completo el botón destructivo "Eliminar todas" de la cabecera
         right.add(btnHistorial);
 
         h.add(left, BorderLayout.WEST);
@@ -135,44 +130,11 @@ public class AlertasPanel extends JPanel {
         table.getColumnModel().getColumn(4).setPreferredWidth(320);
         table.getColumnModel().getColumn(5).setPreferredWidth(120);
 
-        final JPopupMenu menuContextual = buildContextMenu();
-
-        table.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mousePressed(MouseEvent e) {
-                evaluarClicContextual(e);
-            }
-
-            @Override
-            public void mouseReleased(MouseEvent e) {
-                evaluarClicContextual(e);
-            }
-
-            private void evaluarClicContextual(MouseEvent e) {
-                if (e.isPopupTrigger() || SwingUtilities.isRightMouseButton(e)) {
-                    int row = table.rowAtPoint(e.getPoint());
-                    if (row >= 0 && row < table.getRowCount()) {
-                        table.setRowSelectionInterval(row, row);
-                        menuContextual.show(table, e.getX(), e.getY());
-                    } else {
-                        table.clearSelection();
-                    }
-                }
-            }
-        });
+        // CORRECCIÓN: Se removió el MouseListener de escucha de Popup contextual (clic derecho) 
+        // para que la interfaz quede completamente protegida de eliminaciones manuales puntuales.
 
         p.add(AppTheme.darkScrollPane(table), BorderLayout.CENTER);
         return p;
-    }
-
-    private JPopupMenu buildContextMenu() {
-        JPopupMenu popup = AppTheme.darkPopup();
-        JMenuItem itemEliminar = AppTheme.darkMenuItem("Eliminar alerta", AppTheme.DANGER_TEXT);
-        itemEliminar.addActionListener(e -> eliminarSeleccionada());
-        if (SessionManager.getInstance().isGerente()) {
-            popup.add(itemEliminar);
-        }
-        return popup;
     }
 
     private void buscar() {
@@ -199,42 +161,7 @@ public class AlertasPanel extends JPanel {
         currentWorker.execute();
     }
 
-    private void eliminarSeleccionada() {
-        if (!SessionManager.getInstance().isGerente())
-            return;
-        int row = table.getSelectedRow();
-        if (row < 0)
-            return;
-        int opt = JOptionPane.showConfirmDialog(this,
-                "¿Eliminar esta alerta permanentemente?", "Confirmar",
-                JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
-        if (opt == JOptionPane.YES_OPTION) {
-            try {
-                new com.tornillos.dao.AlertaDAO().eliminar((int) tableModel.getValueAt(row, 0));
-                mainFrame.actualizarBadgeAlertas();
-                refresh();
-            } catch (Exception ex) {
-                JOptionPane.showMessageDialog(this, "Error: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
-            }
-        }
-    }
-
-    private void eliminarTodas() {
-        if (!SessionManager.getInstance().isGerente())
-            return;
-        int opt = JOptionPane.showConfirmDialog(this,
-                "¿Eliminar TODAS las alertas permanentemente?\nEsta acción no se puede deshacer.",
-                "Confirmar eliminación", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
-        if (opt == JOptionPane.YES_OPTION) {
-            try {
-                new com.tornillos.dao.AlertaDAO().eliminarTodas();
-                mainFrame.actualizarBadgeAlertas();
-                refresh();
-            } catch (Exception ex) {
-                JOptionPane.showMessageDialog(this, "Error: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
-            }
-        }
-    }
+    // CORRECCIÓN: Se eliminaron los métodos muertos eliminarSeleccionada() y eliminarTodas()
 
     private void mostrarHistorial() {
         JDialog dialog = new JDialog(SwingUtilities.getWindowAncestor(this), "Historial de alertas",

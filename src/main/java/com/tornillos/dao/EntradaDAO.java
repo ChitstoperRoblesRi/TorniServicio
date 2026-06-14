@@ -48,7 +48,8 @@ public class EntradaDAO {
     }
 
     public int contarHoy() throws SQLException {
-        String sql = "SELECT COUNT(*) FROM entradas WHERE DATE(fecha)=CURRENT_DATE";
+        // CORRECCIÓN: Contamos solo las entradas que sigan activas hoy
+        String sql = "SELECT COUNT(*) FROM entradas WHERE DATE(fecha)=CURRENT_DATE AND activo = true";
         try (Statement st = DatabaseConfig.getConnection().createStatement();
              ResultSet rs = st.executeQuery(sql)) {
             return rs.next() ? rs.getInt(1) : 0;
@@ -59,7 +60,7 @@ public class EntradaDAO {
         Connection conn = DatabaseConfig.getConnection();
         conn.setAutoCommit(false);
         try {
-            String getQ = "SELECT tornillo_id, cantidad FROM entradas WHERE id=?";
+            String getQ = "SELECT tornillo_id, cantidad FROM entradas WHERE id=? AND activo = true";
             int tornilloId = 0, cantidad = 0;
             try (PreparedStatement ps = conn.prepareStatement(getQ)) {
                 ps.setInt(1, id);
@@ -77,7 +78,7 @@ public class EntradaDAO {
                     if (rs.next() && rs.getInt("stock_actual") < cantidad) {
                         throw new SQLException("Stock actual (" + rs.getInt("stock_actual")
                             + ") es menor que la cantidad a revertir (" + cantidad
-                            + "). No se puede eliminar la entrada.");
+                            + "). No se puede revertir esta entrada.");
                     }
                 }
             }
@@ -86,8 +87,11 @@ public class EntradaDAO {
                 ps.setInt(1, cantidad); ps.setInt(2, tornilloId);
                 ps.executeUpdate();
             }
-            try (PreparedStatement ps = conn.prepareStatement("DELETE FROM entradas WHERE id=?")) {
-                ps.setInt(1, id); ps.executeUpdate();
+            
+            // CORRECCIÓN TRANSACCIONAL: Cambiado DELETE por un UPDATE de desactivación lógica
+            try (PreparedStatement ps = conn.prepareStatement("UPDATE entradas SET activo = false WHERE id=?")) {
+                ps.setInt(1, id); 
+                ps.executeUpdate();
             }
             conn.commit();
         } catch (SQLException ex) {
@@ -106,7 +110,7 @@ public class EntradaDAO {
             "CONCAT(u.nombre,' ',u.apellido) AS usuario_nombre " +
             "FROM entradas e " +
             "JOIN tornillos t ON e.tornillo_id=t.id " +
-            "JOIN usuarios u ON e.usuario_id=u.id WHERE 1=1 ");
+            "JOIN usuarios u ON e.usuario_id=u.id WHERE e.activo = true "); // CORRECCIÓN: Filtro de exclusión activa
         
         List<Object> params = new ArrayList<>();
         if (termino != null && !termino.isEmpty()) {

@@ -97,7 +97,8 @@ CREATE TABLE IF NOT EXISTS entradas (
     total DECIMAL(14,2) DEFAULT 0,
     numero_factura VARCHAR(100),
     observaciones TEXT,
-    fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    activo BOOLEAN DEFAULT TRUE
 );
 
 -- Salidas de inventario
@@ -112,7 +113,8 @@ CREATE TABLE IF NOT EXISTS salidas (
     motivo VARCHAR(100),
     cliente VARCHAR(150),
     observaciones TEXT,
-    fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    activo BOOLEAN DEFAULT TRUE
 );
 
 -- Alertas

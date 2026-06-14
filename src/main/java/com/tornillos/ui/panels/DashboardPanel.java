@@ -287,6 +287,7 @@ public class DashboardPanel extends JPanel {
         return card;
     }
 
+    // ── REFRESH SINCRONIZADO CONTRA BORRADOS LÓGICOS ──
     public void refresh() {
         new SwingWorker<Object[], Void>() {
             @Override
@@ -317,8 +318,8 @@ public class DashboardPanel extends JPanel {
                     }
                 }
 
-                // 2. Entradas del día
-                String sqlEntradasHoy = "SELECT COUNT(*), COALESCE((SELECT t.nombre FROM entradas e2 JOIN tornillos t ON e2.tornillo_id = t.id WHERE DATE(e2.fecha) = CURRENT_DATE ORDER BY e2.fecha DESC LIMIT 1), 'Ninguna') FROM entradas WHERE DATE(fecha) = CURRENT_DATE";
+                // 2. Transacciones Diarias: Entradas (CORREGIDA con activo = true)
+                String sqlEntradasHoy = "SELECT COUNT(*), COALESCE((SELECT t.nombre FROM entradas e2 JOIN tornillos t ON e2.tornillo_id = t.id WHERE DATE(e2.fecha) = CURRENT_DATE AND e2.activo = true ORDER BY e2.fecha DESC LIMIT 1), 'Ninguna') FROM entradas WHERE DATE(fecha) = CURRENT_DATE AND activo = true";
                 try (Statement st = conn.createStatement(); ResultSet rs = st.executeQuery(sqlEntradasHoy)) {
                     if (rs.next()) {
                         entradasHoy = rs.getInt(1);
@@ -326,8 +327,8 @@ public class DashboardPanel extends JPanel {
                     }
                 }
 
-                // 3. Salidas del día
-                String sqlSalidasHoy = "SELECT COUNT(*), COALESCE((SELECT t.nombre FROM salidas s2 JOIN tornillos t ON s2.tornillo_id = t.id WHERE DATE(s2.fecha) = CURRENT_DATE ORDER BY s2.fecha DESC LIMIT 1), 'Ninguna') FROM salidas WHERE DATE(fecha) = CURRENT_DATE";
+                // 3. Transacciones Diarias: Salidas (CORREGIDA con activo = true)
+                String sqlSalidasHoy = "SELECT COUNT(*), COALESCE((SELECT t.nombre FROM salidas s2 JOIN tornillos t ON s2.tornillo_id = t.id WHERE DATE(s2.fecha) = CURRENT_DATE AND s2.activo = true ORDER BY s2.fecha DESC LIMIT 1), 'Ninguna') FROM salidas WHERE DATE(fecha) = CURRENT_DATE AND activo = true";
                 try (Statement st = conn.createStatement(); ResultSet rs = st.executeQuery(sqlSalidasHoy)) {
                     if (rs.next()) {
                         salidasHoy = rs.getInt(1);
@@ -335,10 +336,10 @@ public class DashboardPanel extends JPanel {
                     }
                 }
 
-                // 4. Producto Estrella del Día
+                // 4. Métrica de Producto Estrella (CORREGIDA con s.activo = true)
                 String sqlTop = "SELECT t.nombre, SUM(s.total) AS total_dia " +
                                 "FROM salidas s JOIN tornillos t ON s.tornillo_id = t.id " +
-                                "WHERE DATE(s.fecha) = CURRENT_DATE " +
+                                "WHERE DATE(s.fecha) = CURRENT_DATE AND s.activo = true " +
                                 "GROUP BY t.id, t.nombre ORDER BY total_dia DESC LIMIT 1";
                 try (Statement st = conn.createStatement(); ResultSet rs = st.executeQuery(sqlTop)) {
                     if (rs.next()) {
@@ -361,14 +362,14 @@ public class DashboardPanel extends JPanel {
                     lblEntradas.setText(String.valueOf(d[3]));
                     lblSalidas.setText(String.valueOf(d[5]));
                     
-                    // CORRECCIÓN VISUAL DE RETÍCULA: Fijamos un bloque de ancho estricto de 125px para evitar desbordamientos
+                    // Card 5: El nombre del tornillo estrella baja de línea de manera controlada y limpia
                     String prodEstrella = (String) d[7];
-                    lblTopProducto.setText("<html><p style='width: 125px; margin: 0; padding: 0; font-family: Segoe UI; font-weight: bold;'>" + prodEstrella + "</p></html>");
+                    lblTopProducto.setText("<html><p style='width: 150px; margin: 0; padding: 0; font-family: Segoe UI; font-weight: bold;'>" + prodEstrella + "</p></html>");
 
+                    // Etiquetas descriptivas inferiores estructuradas en HTML sin tocar los números principales
                     lblDescCard1.setText("<html>Catálogo activo</html>");
                     lblDescCard2.setText("<html>En stock crítico: <b style='color:#F0CC70;'>" + d[2] + "</b></html>");
                     
-                    // CORRECCIÓN DE TARJETAS 3 Y 4: Envolturas HTML equilibradas con salto de línea libre sin truncar
                     String ent = (String) d[4];
                     lblDescCard3.setText("<html><p style='width: 125px; margin: 0; padding: 0;'>Última:<br><span style='color:#A0AABF; font-size:10px;'>" + ent + "</span></p></html>");
                     
