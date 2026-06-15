@@ -440,7 +440,10 @@ public class AlertasPanel extends JPanel {
         histTable.getColumnModel().getColumn(0).setMinWidth(0);
         histTable.getColumnModel().getColumn(0).setMaxWidth(0);
 
+        // 🌟 CORREGIDO: Interceptamos el contenedor de desplazamiento para mitigar el text bleeding/ghosting
         JScrollPane scroll = AppTheme.darkScrollPane(histTable);
+        scroll.getViewport().setScrollMode(javax.swing.JViewport.SIMPLE_SCROLL_MODE); // Direct blitting render
+        
         panel.add(scroll, BorderLayout.CENTER);
 
         JButton btnCerrar = AppTheme.primaryButton("Cerrar");
