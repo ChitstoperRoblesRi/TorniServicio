@@ -93,8 +93,9 @@ public class EntradasPanel extends JPanel {
 
         JPanel right = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
         right.setOpaque(false);
+        // Modifica la línea ~66 donde se configura el botón "+ Nueva Entrada" para pasarle un null:
         JButton btnNueva = AppTheme.successButton("+ Nueva Entrada");
-        btnNueva.addActionListener(e -> abrirFormularioEntrada());
+        btnNueva.addActionListener(e -> abrirFormularioEntrada(null)); // 🌟 CAMBIADO: pasa null si es entrada limpia
         right.add(btnNueva);
 
         h.add(left, BorderLayout.WEST);
@@ -346,9 +347,9 @@ public class EntradasPanel extends JPanel {
         }
     }
 
-    public void abrirFormularioEntrada() {
-        JDialog dlg = new JDialog((JFrame) SwingUtilities.getWindowAncestor(this),
-                "Registrar Entrada", true);
+    // 🌟 CORREGIDO: Firma ordenada para solucionar el bug de preselección de precio
+    public void abrirFormularioEntrada(String codigoPreseleccionado) { 
+        JDialog dlg = new JDialog((JFrame) SwingUtilities.getWindowAncestor(this), "Registrar Entrada", true);
         dlg.setSize(520, 480);
         dlg.setLocationRelativeTo(this);
         dlg.getContentPane().setBackground(AppTheme.BG_CARD);
@@ -362,18 +363,40 @@ public class EntradasPanel extends JPanel {
 
         List<Tornillo> tornillos;
         try {
-            // Cambiado: Se le solicitan los tornillos de inventario al Servicio
             tornillos = entradaService.obtenerCatalogoTornillos();
         } catch (Exception e) {
             JOptionPane.showMessageDialog(this, "Error cargando datos: " + e.getMessage());
             return;
         }
 
+        // 1. PASO CLAVE: Inicializar TODOS los campos del formulario primero
         JComboBox<Tornillo> cmbTornillo = com.tornillos.util.SearchableComboBoxFactory.create(tornillos);
         cmbTornillo.setSelectedIndex(-1);
         cmbTornillo.setBackground(AppTheme.BG_CARD_HOVER);
         cmbTornillo.setForeground(AppTheme.TEXT_PRIMARY);
 
+        JTextField txtCantidad = AppTheme.styledField("0");
+        JTextField txtPrecio = AppTheme.styledField("0.00");
+        JTextField txtFactura = AppTheme.styledField("Numero de factura (opcional)");
+        JTextArea txtObs = AppTheme.styledTextArea();
+        txtObs.setRows(2);
+
+        // 2. PASO CLAVE: Agregar el ActionListener ANTES de hacer la selección automática
+        cmbTornillo.addActionListener(e -> {
+            Object seleccionadoObj = cmbTornillo.getSelectedItem();
+            if (seleccionadoObj instanceof Tornillo) {
+                Tornillo seleccionado = (Tornillo) seleccionadoObj;
+                if (seleccionado.getPrecioCosto() != null) {
+                    txtPrecio.setText(seleccionado.getPrecioCosto().toPlainString());
+                } else {
+                    txtPrecio.setText("0.00");
+                }
+            } else {
+                txtPrecio.setText("0.00");
+            }
+        });
+
+        // 3. Aplicar estilos UI al ComboBox
         cmbTornillo.setUI(new javax.swing.plaf.basic.BasicComboBoxUI() {
             @Override
             protected JButton createArrowButton() {
@@ -401,30 +424,17 @@ public class EntradasPanel extends JPanel {
         });
         unificarEstiloEditorCombo(cmbTornillo, true);
 
-        JTextField txtCantidad = AppTheme.styledField("0");
-        JTextField txtPrecio = AppTheme.styledField("0.00");
-        JTextField txtFactura = AppTheme.styledField("Numero de factura (opcional)");
-        JTextArea txtObs = AppTheme.styledTextArea();
-        txtObs.setRows(2);
-
-        cmbTornillo.addActionListener(e -> {
-            // 🌟 CLAVE: Obtenemos la selección como Object genérico primero
-            Object seleccionadoObj = cmbTornillo.getSelectedItem();
-            
-            // Solo procesamos la lógica si lo seleccionado es verdaderamente una instancia de Tornillo
-            if (seleccionadoObj instanceof Tornillo) {
-                Tornillo seleccionado = (Tornillo) seleccionadoObj;
-                if (seleccionado.getPrecioCosto() != null) {
-                    txtPrecio.setText(seleccionado.getPrecioCosto().toPlainString());
-                } else {
-                    txtPrecio.setText("0.00");
+        // 4. PASO CLAVE: Ejecutar la selección automática AL FINAL. 
+        // Como el listener ya escucha y txtPrecio ya existe, rellenará el precio de inmediato.
+        if (codigoPreseleccionado != null) {
+            for (int i = 0; i < cmbTornillo.getItemCount(); i++) {
+                Tornillo t = cmbTornillo.getItemAt(i);
+                if (t != null && codigoPreseleccionado.equals(t.getCodigo())) {
+                    cmbTornillo.setSelectedItem(t);
+                    break;
                 }
-            } else {
-                // Si es un String de texto libre porque el usuario estaba escribiendo,
-                // ignoramos pacíficamente el evento sin romper la consola
-                txtPrecio.setText("0.00");
             }
-        });
+        }
 
         String folio = FolioGenerator.generarEntrada();
         JTextField txtFolio = AppTheme.styledField(folio);

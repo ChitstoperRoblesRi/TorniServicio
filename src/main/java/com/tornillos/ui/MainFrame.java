@@ -1,19 +1,50 @@
 package com.tornillos.ui;
 
-import com.tornillos.config.AppTheme;
-import com.tornillos.dao.AlertaDAO;
-//import com.tornillos.model.Tornillo;
-import com.tornillos.model.Usuario;
-import com.tornillos.service.AlertaService;
-import com.tornillos.service.SessionManager;
-import com.tornillos.ui.panels.*;
-
-import javax.swing.*;
-import java.awt.*;
-import java.awt.event.*;
+import java.awt.BasicStroke;
+import java.awt.BorderLayout;
+import java.awt.CardLayout;
+import java.awt.Color;
+import java.awt.Component;
+import java.awt.Container;
+import java.awt.Cursor;
+import java.awt.Dimension;
+import java.awt.Font;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.awt.GridLayout;
+import java.awt.RenderingHints;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+
+import javax.swing.BorderFactory;
+import javax.swing.Box;
+import javax.swing.BoxLayout;
+import javax.swing.JButton;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.SwingConstants;
+import javax.swing.SwingUtilities;
+
+import com.tornillos.config.AppTheme;
+import com.tornillos.dao.AlertaDAO;
+import com.tornillos.model.Usuario;
+import com.tornillos.service.AlertaService;
+import com.tornillos.service.SessionManager;
+import com.tornillos.ui.panels.AlertasPanel;
+import com.tornillos.ui.panels.ConfigPanel;
+import com.tornillos.ui.panels.DashboardPanel;
+import com.tornillos.ui.panels.EntradasPanel;
+import com.tornillos.ui.panels.InventarioPanel;
+import com.tornillos.ui.panels.ReportesPanel;
+import com.tornillos.ui.panels.SalidasPanel;
+import com.tornillos.ui.panels.UsuariosPanel;
 
 public class MainFrame extends JFrame {
 
@@ -352,9 +383,19 @@ public class MainFrame extends JFrame {
         } catch (Exception ignored) {}
     }
 
+    // 🌟 CORREGIDO: Enlaza el doble clic de Alertas, cambia de pestaña y pre-selecciona el tornillo
+    public void IrAEntradasYReabastecer(String codigoTornillo) {
+        // 1. Cambia visualmente la vista del CardLayout al panel de Entradas
+        showPanel("ENTRADAS"); 
+
+        // 2. Abre el formulario en el panel de entradas pasándole el código del tornillo
+        entradasPanel.abrirFormularioEntrada(codigoTornillo); 
+    }
+
+    // 🌟 CORREGIDO: Adaptado a la nueva firma del método pasando 'null' para una entrada limpia
     public void gatillarNuevaEntrada() {
         showPanel("ENTRADAS");          // Cambia la vista a la pestaña de entradas
-        entradasPanel.abrirFormularioEntrada(); // Lanza el modal automáticamente
+        entradasPanel.abrirFormularioEntrada(null); // 🌟 SOLUCIÓN: Pasa null para indicar que no viene de alertas
     }
 
     public void gatillarNuevaSalida() {

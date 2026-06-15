@@ -37,6 +37,10 @@ public class AlertaService {
         return alertaDAO.buscar(criterio.trim());
     }
 
+    public List<Alerta> obtenerHistorial(String desde, String hasta, String criterio) throws Exception {
+        return alertaDAO.listarHistorial(desde, hasta, criterio); // Suponiendo que tienes la instancia ahí
+    }
+
     public List<Alerta> obtenerHistorialPorTornillo(int tornilloId) throws SQLException {
         return alertaDAO.listarHistorialPorTornillo(tornilloId);
     }

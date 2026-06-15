@@ -131,15 +131,46 @@ public class AlertaDAO {
         return lista;
     }
 
-    // Método agregado para resolver error en AlertasPanel lineas 202 y 218
-    public List<Alerta> listarHistorial() throws SQLException {
+    // 🌟 CORREGIDO: Soporte completo para filtrado combinado de fechas + texto libre (PostgreSQL compatible)
+    public List<Alerta> listarHistorial(String desde, String hasta, String criterio) throws SQLException {
         List<Alerta> lista = new ArrayList<>();
-        String sql = "SELECT a.*, t.nombre AS tornillo_nombre, t.codigo AS tornillo_codigo " +
-                     "FROM alertas a JOIN tornillos t ON a.tornillo_id=t.id ORDER BY a.creada_en DESC";
-        try (Statement st = DatabaseConfig.getConnection().createStatement();
-             ResultSet rs = st.executeQuery(sql)) {
-            while (rs.next()) {
-                lista.add(mapear(rs));
+        
+        StringBuilder sb = new StringBuilder(
+            "SELECT a.*, t.nombre AS tornillo_nombre, t.codigo AS tornillo_codigo " +
+            "FROM alertas a JOIN tornillos t ON a.tornillo_id = t.id WHERE 1=1"
+        );
+        
+        if (desde != null && !desde.isEmpty()) {
+            sb.append(" AND a.creada_en >= ?");
+        }
+        if (hasta != null && !hasta.isEmpty()) {
+            sb.append(" AND a.creada_en <= ?");
+        }
+        if (criterio != null && !criterio.isEmpty()) {
+            sb.append(" AND (LOWER(t.nombre) LIKE LOWER(?) OR LOWER(t.codigo) LIKE LOWER(?))");
+        }
+        
+        sb.append(" ORDER BY a.creada_en DESC");
+
+        try (PreparedStatement ps = DatabaseConfig.getConnection().prepareStatement(sb.toString())) {
+            int paramIdx = 1;
+            
+            if (desde != null && !desde.isEmpty()) {
+                ps.setTimestamp(paramIdx++, Timestamp.valueOf(desde + " 00:00:00"));
+            }
+            if (hasta != null && !hasta.isEmpty()) {
+                ps.setTimestamp(paramIdx++, Timestamp.valueOf(hasta + " 23:59:59"));
+            }
+            if (criterio != null && !criterio.isEmpty()) {
+                String p = "%" + criterio + "%";
+                ps.setString(paramIdx++, p);
+                ps.setString(paramIdx++, p);
+            }
+            
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    lista.add(mapear(rs));
+                }
             }
         }
         return lista;
