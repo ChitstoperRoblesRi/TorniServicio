@@ -1,15 +1,18 @@
 package com.tornillos.dao;
 
-import com.tornillos.config.DatabaseConfig;
-import com.tornillos.model.Alerta;
-
-import java.sql.*;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.tornillos.config.DatabaseConfig;
+import com.tornillos.model.Alerta;
+
 public class AlertaDAO {
 
-    // 🌟 MODIFICADO: Ahora inserta siempre un registro nuevo e independiente para conservar la trazabilidad histórica lineal
     public void crear(Alerta a) throws SQLException {
         String sql = "INSERT INTO alertas (tornillo_id, tipo, mensaje) VALUES (?,?,?)";
         try (PreparedStatement ps = DatabaseConfig.getConnection().prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
@@ -26,7 +29,6 @@ public class AlertaDAO {
     }
 
     public boolean existeAlertaActivaEvitarRepetidos(int tornilloId, String tipo) throws SQLException {
-        // 1. Buscamos la fecha de la última vez que este tornillo registró EXACTAMENTE este tipo de alerta
         String sqlAlerta = "SELECT creada_en FROM alertas WHERE tornillo_id = ? AND tipo = ? ORDER BY creada_en DESC LIMIT 1";
         Timestamp fechaUltimaAlerta = null;
         
@@ -40,27 +42,21 @@ public class AlertaDAO {
             }
         }
         
-        // SOLUCIÓN AL ERROR EN TERMINAL: Si el tornillo es nuevo o no tiene alertas previas de este tipo, 
-        // significa que NO es un duplicado. Retornamos false INMEDIATAMENTE sin ejecutar la segunda query.
-        // Esto evita que se intente enviar un parámetro NULL a PostgreSQL y rompa el hilo del servicio.
         if (fechaUltimaAlerta == null) {
             return false;
         }
         
-        // 2. Si llegamos aquí, sí existe una alerta previa. Evaluamos si hubo reabastecimientos posteriores.
         String sqlEntradaIntermedia = "SELECT 1 FROM entradas WHERE tornillo_id = ? AND fecha > ? AND activo = true LIMIT 1";
         try (PreparedStatement ps = DatabaseConfig.getConnection().prepareStatement(sqlEntradaIntermedia)) {
             ps.setInt(1, tornilloId);
-            ps.setTimestamp(2, fechaUltimaAlerta); // Ahora garantizamos que nunca será null
+            ps.setTimestamp(2, fechaUltimaAlerta);
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
-                    // Hubo una entrada intermedia en el almacén. El ciclo anterior se cerró.
                     return false; 
                 }
             }
         }
         
-        // Si no ha habido entradas desde esa última alerta, es un duplicado redundante del Timer. Bloqueamos.
         return true;
     }
 
@@ -128,7 +124,7 @@ public class AlertaDAO {
         String sql = "SELECT a.*, t.nombre AS tornillo_nombre, t.codigo AS tornillo_codigo " +
                      "FROM alertas a JOIN tornillos t ON a.tornillo_id=t.id " +
                      "WHERE a.tornillo_id=? AND a.tipo=? AND a.enviada_email=false " +
-                     "ORDER BY a.creada_en DESC LIMIT 1"; // Sincronizado para traer el registro lineal más reciente
+                     "ORDER BY a.creada_en DESC LIMIT 1";
         try (PreparedStatement ps = DatabaseConfig.getConnection().prepareStatement(sql)) {
             ps.setInt(1, tornilloId);
             ps.setString(2, tipo);

@@ -38,7 +38,6 @@ public class AlertasPanel extends JPanel {
     private JLabel lblConteo;
     private SwingWorker<?, ?> currentWorker;
 
-    // CORRECCIÓN: Estado independiente para controlar el botón de filtro semántico activo
     private String filtroTipoSelected = null; 
     private JButton chipTodos, chipSinStock, chipCriticos, chipBajos;
 
@@ -102,21 +101,19 @@ public class AlertasPanel extends JPanel {
         JPanel bar = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
         bar.setOpaque(false);
 
-        txtBuscar = AppTheme.styledField("Buscar por tornillo o código y presiona Enter...");
+        txtBuscar = AppTheme.styledField("Buscar por tornillo o código...");
         txtBuscar.setPreferredSize(new Dimension(380, 34));
         txtBuscar.addKeyListener(new KeyAdapter() {
             @Override
-            public void keyPressed(KeyEvent e) {
-                if (e.getKeyCode() == KeyEvent.VK_ENTER) {
-                    buscar();
-                }
+            public void keyReleased(KeyEvent e) {
+                buscar();
             }
         });
 
         JButton btnLimpiar = AppTheme.secondaryButton("Limpiar");
         btnLimpiar.addActionListener(e -> {
             txtBuscar.setText("");
-            cambiarSeleccionChip(null); // Resetea filtros rápidos
+            cambiarSeleccionChip(null);
             buscar();
         });
 
@@ -133,7 +130,6 @@ public class AlertasPanel extends JPanel {
         chipCriticos = AppTheme.secondaryButton("Críticos");
         chipBajos = AppTheme.secondaryButton("Bajos");
 
-        // CORRECCIÓN: Los botones ya no escriben en la caja de texto. Ahora guardan el filtro de tipo de forma transparente.
         chipTodos.addActionListener(e -> { cambiarSeleccionChip(null); buscar(); });
         chipSinStock.addActionListener(e -> { cambiarSeleccionChip("SIN_STOCK"); buscar(); });
         chipCriticos.addActionListener(e -> { cambiarSeleccionChip("STOCK_CRITICO"); buscar(); });
@@ -143,7 +139,7 @@ public class AlertasPanel extends JPanel {
         panelChips.add(chipCriticos); panelChips.add(chipBajos);
         topContainer.add(panelChips);
 
-        cambiarSeleccionChip(null); // Selección inicial visual de "Todos"
+        cambiarSeleccionChip(null);
 
         p.add(topContainer, BorderLayout.NORTH);
 
@@ -233,9 +229,6 @@ public class AlertasPanel extends JPanel {
         return p;
     }
 
-    /**
-     * CORRECCIÓN: Actualiza el aspecto de selección visual de los botones del Design System.
-     */
     private void cambiarSeleccionChip(String tipo) {
         this.filtroTipoSelected = tipo;
         chipTodos.setForeground(tipo == null ? AppTheme.GOLD_LIGHT : AppTheme.TEXT_SECONDARY);
@@ -261,7 +254,6 @@ public class AlertasPanel extends JPanel {
         currentWorker = new SwingWorker<List<Alerta>, Void>() {
             @Override
             protected List<Alerta> doInBackground() throws Exception {
-                // CORRECCIÓN: Ahora se envían ambos filtros de forma independiente al servicio corporativo
                 return alertaService.buscarAlertasCombinadas(termino, tipoFiltro);
             }
 
@@ -368,9 +360,21 @@ public class AlertasPanel extends JPanel {
         txtBuscarHist.addFocusListener(focusAdapter);
 
         String[] cols = { "ID", "Tipo", "Tornillo", "Código", "Mensaje", "Email", "Fecha" };
-        DefaultTableModel histModel = new DefaultTableModel(cols, 0) {
+        final DefaultTableModel histModel = new DefaultTableModel(cols, 0) {
             @Override public boolean isCellEditable(int r, int c) { return false; }
         };
+
+        txtBuscarHist.addKeyListener(new KeyAdapter() {
+            @Override
+            public void keyReleased(KeyEvent e) {
+                String rawDesde = txtDesde.getText().trim();
+                String rawHasta = txtHasta.getText().trim();
+                String desde = (rawDesde.isEmpty() || rawDesde.contains("_")) ? null : rawDesde;
+                String hasta = (rawHasta.isEmpty() || rawHasta.contains("_")) ? null : rawHasta;
+                
+                cargarHistorialFiltrado(histModel, desde, hasta, txtBuscarHist.getText().trim());
+            }
+        });
 
         JButton btnFiltrar = AppTheme.primaryButton("Filtrar");
         JButton btnLimpiar = AppTheme.secondaryButton("Limpiar");
@@ -394,10 +398,11 @@ public class AlertasPanel extends JPanel {
                     "");
         });
 
-        bar.add(AppTheme.label("Desde:")); bar.add(txtDesde);
-        bar.add(AppTheme.label("Hasta:")); bar.add(txtHasta);
-        bar.add(AppTheme.label("Texto:")); bar.add(txtBuscarHist);
-        bar.add(btnFiltrar); bar.add(btnLimpiar);
+        bar.add(AppTheme.label("Buscar:")); bar.add(txtBuscarHist);
+        bar.add(AppTheme.label("Desde:"));  bar.add(txtDesde);
+        bar.add(AppTheme.label("Hasta:"));  bar.add(txtHasta);
+        bar.add(btnFiltrar); 
+        bar.add(btnLimpiar);
 
         topPanel.add(bar, BorderLayout.SOUTH);
         panel.add(topPanel, BorderLayout.NORTH);
