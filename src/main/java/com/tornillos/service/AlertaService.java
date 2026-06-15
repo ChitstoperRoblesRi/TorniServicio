@@ -10,7 +10,6 @@ import javax.mail.*;
 import javax.mail.internet.InternetAddress;
 import javax.mail.internet.MimeMessage;
 import java.sql.SQLException;
-// import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -24,8 +23,6 @@ public class AlertaService {
     private final TornilloDAO tornilloDAO = new TornilloDAO();
     private final ConfiguracionDAO confDAO = new ConfiguracionDAO();
 
-    // ── Métodos puente para AlertasPanel ──
-    
     public List<Alerta> obtenerAlertasActivas() throws SQLException {
         return alertaDAO.listarActivas();
     }
@@ -38,7 +35,7 @@ public class AlertaService {
     }
 
     public List<Alerta> obtenerHistorial(String desde, String hasta, String criterio) throws Exception {
-        return alertaDAO.listarHistorial(desde, hasta, criterio); // Suponiendo que tienes la instancia ahí
+        return alertaDAO.listarHistorial(desde, hasta, criterio);
     }
 
     public List<Alerta> obtenerHistorialPorTornillo(int tornilloId) throws SQLException {
@@ -53,10 +50,6 @@ public class AlertaService {
         confDAO.guardar(clave, valor);
     }
 
-    /**
-     * Sobrecarga agregada para procesar la llamada basada en mapas desde ConfigPanel.
-     * Retorna null si el correo se envió con éxito o el mensaje de error si falló.
-     */
     public String probarConexion(Map<String, String> conf) {
         try {
             String host = conf.get("smtp_host");
@@ -108,18 +101,24 @@ public class AlertaService {
                     tipo = "STOCK_CRITICO";
                 }
 
-                String msg = "El tornillo " + t.getNombre() + " (" + t.getCodigo() + ") está en " + tipo 
-                           + ". Stock actual: " + t.getStockActual() + ", Mínimo: " + t.getStockMinimo();
+                // 🌟 REGLA DE NEGOCIO INTELIGENTE: Consultamos cuál fue la última alerta de este producto
+                boolean esDuplicadoEnMismoCiclo = alertaDAO.existeAlertaActivaEvitarRepetidos(t.getId(), tipo);
+                
+                if (!esDuplicadoEnMismoCiclo) {
+                    
+                    String msg = "El tornillo " + t.getNombre() + " (" + t.getCodigo() + ") está en " + tipo 
+                               + ". Stock actual: " + t.getStockActual() + ", Mínimo: " + t.getStockMinimo();
 
-                Alerta alerta = new Alerta(t.getId(), t.getNombre(), tipo, msg);
-                alertaDAO.crear(alerta);
+                    Alerta nuevaAlerta = new Alerta(t.getId(), t.getNombre(), tipo, msg);
+                    alertaDAO.crear(nuevaAlerta);
 
-                if (emailActivo) {
-                    Alerta existente = alertaDAO.buscarNoEnviada(t.getId(), tipo);
-                    if (existente != null) {
-                        boolean enviado = enviarCorreoAlerta(existente, conf, t.getNombre(), t.getCodigo());
-                        if (enviado) {
-                            alertaDAO.marcarComoEnviada(existente.getId());
+                    if (emailActivo) {
+                        Alerta existente = alertaDAO.buscarNoEnviada(t.getId(), tipo);
+                        if (existente != null) {
+                            boolean enviado = enviarCorreoAlerta(existente, conf, t.getNombre(), t.getCodigo());
+                            if (enviado) {
+                                alertaDAO.marcarComoEnviada(existente.getId());
+                            }
                         }
                     }
                 }
@@ -170,6 +169,11 @@ public class AlertaService {
             LOG.severe("Error al enviar email de alerta: " + e.getMessage());
             return false;
         }
+    }
+
+    // CORRECCIÓN: Método intermedio unificado para procesar búsquedas textuales y chips simultáneamente
+    public List<Alerta> buscarAlertasCombinadas(String criterio, String tipoFiltro) throws SQLException {
+        return alertaDAO.buscarConFiltroCruzado(criterio != null ? criterio.trim() : "", tipoFiltro);
     }
 
     private String generarContenidoHtml(String tipo, String empresa, String nombre, String codigo, String mensaje) {

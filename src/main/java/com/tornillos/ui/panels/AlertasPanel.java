@@ -38,6 +38,10 @@ public class AlertasPanel extends JPanel {
     private JLabel lblConteo;
     private SwingWorker<?, ?> currentWorker;
 
+    // CORRECCIÓN: Estado independiente para controlar el botón de filtro semántico activo
+    private String filtroTipoSelected = null; 
+    private JButton chipTodos, chipSinStock, chipCriticos, chipBajos;
+
     private final java.time.format.DateTimeFormatter visualFormatter =
             java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
 
@@ -98,7 +102,7 @@ public class AlertasPanel extends JPanel {
         JPanel bar = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
         bar.setOpaque(false);
 
-        txtBuscar = AppTheme.styledField("Buscar por tornillo, tipo o mensaje y presiona Enter...");
+        txtBuscar = AppTheme.styledField("Buscar por tornillo o código y presiona Enter...");
         txtBuscar.setPreferredSize(new Dimension(380, 34));
         txtBuscar.addKeyListener(new KeyAdapter() {
             @Override
@@ -112,7 +116,8 @@ public class AlertasPanel extends JPanel {
         JButton btnLimpiar = AppTheme.secondaryButton("Limpiar");
         btnLimpiar.addActionListener(e -> {
             txtBuscar.setText("");
-            refresh();
+            cambiarSeleccionChip(null); // Resetea filtros rápidos
+            buscar();
         });
 
         bar.add(txtBuscar);
@@ -123,19 +128,22 @@ public class AlertasPanel extends JPanel {
         panelChips.setOpaque(false);
         panelChips.add(AppTheme.label("Filtros rápidos:"));
 
-        JButton chipTodos = AppTheme.secondaryButton("Todos");
-        JButton chipSinStock = AppTheme.secondaryButton("Sin Stock");
-        JButton chipCriticos = AppTheme.secondaryButton("Críticos");
-        JButton chipBajos = AppTheme.secondaryButton("Bajos");
+        chipTodos = AppTheme.secondaryButton("Todos");
+        chipSinStock = AppTheme.secondaryButton("Sin Stock");
+        chipCriticos = AppTheme.secondaryButton("Críticos");
+        chipBajos = AppTheme.secondaryButton("Bajos");
 
-        chipTodos.addActionListener(e -> { txtBuscar.setText(""); refresh(); });
-        chipSinStock.addActionListener(e -> { txtBuscar.setText("SIN_STOCK"); buscar(); });
-        chipCriticos.addActionListener(e -> { txtBuscar.setText("STOCK_CRITICO"); buscar(); });
-        chipBajos.addActionListener(e -> { txtBuscar.setText("STOCK_BAJO"); buscar(); });
+        // CORRECCIÓN: Los botones ya no escriben en la caja de texto. Ahora guardan el filtro de tipo de forma transparente.
+        chipTodos.addActionListener(e -> { cambiarSeleccionChip(null); buscar(); });
+        chipSinStock.addActionListener(e -> { cambiarSeleccionChip("SIN_STOCK"); buscar(); });
+        chipCriticos.addActionListener(e -> { cambiarSeleccionChip("STOCK_CRITICO"); buscar(); });
+        chipBajos.addActionListener(e -> { cambiarSeleccionChip("STOCK_BAJO"); buscar(); });
 
         panelChips.add(chipTodos); panelChips.add(chipSinStock); 
         panelChips.add(chipCriticos); panelChips.add(chipBajos);
         topContainer.add(panelChips);
+
+        cambiarSeleccionChip(null); // Selección inicial visual de "Todos"
 
         p.add(topContainer, BorderLayout.NORTH);
 
@@ -153,9 +161,11 @@ public class AlertasPanel extends JPanel {
 
                 if (!isRowSelected(row) && tipo != null) {
                     String t = tipo.toString();
-                    if ("SIN_STOCK".equals(t) || t.contains("Sin Stock")) {
+                    if ("Sin Stock".equals(t) || "SIN_STOCK".equals(t)) {
                         c.setForeground(AppTheme.DANGER_TEXT);
-                    } else if ("STOCK_CRITICO".equals(t) || "STOCK_BAJO".equals(t) || t.contains("Crítico") || t.contains("Bajo")) {
+                    } else if ("Crítico".equals(t) || "STOCK_CRITICO".equals(t)) {
+                        c.setForeground(AppTheme.WARNING_TEXT);
+                    } else if ("Bajo".equals(t) || "STOCK_BAJO".equals(t)) {
                         c.setForeground(AppTheme.WARNING_TEXT);
                     }
                 }
@@ -223,15 +233,36 @@ public class AlertasPanel extends JPanel {
         return p;
     }
 
+    /**
+     * CORRECCIÓN: Actualiza el aspecto de selección visual de los botones del Design System.
+     */
+    private void cambiarSeleccionChip(String tipo) {
+        this.filtroTipoSelected = tipo;
+        chipTodos.setForeground(tipo == null ? AppTheme.GOLD_LIGHT : AppTheme.TEXT_SECONDARY);
+        chipTodos.setBorder(tipo == null ? BorderFactory.createLineBorder(AppTheme.GOLD, 1) : BorderFactory.createLineBorder(AppTheme.BORDER, 1));
+        
+        chipSinStock.setForeground("SIN_STOCK".equals(tipo) ? AppTheme.GOLD_LIGHT : AppTheme.TEXT_SECONDARY);
+        chipSinStock.setBorder("SIN_STOCK".equals(tipo) ? BorderFactory.createLineBorder(AppTheme.GOLD, 1) : BorderFactory.createLineBorder(AppTheme.BORDER, 1));
+        
+        chipCriticos.setForeground("STOCK_CRITICO".equals(tipo) ? AppTheme.GOLD_LIGHT : AppTheme.TEXT_SECONDARY);
+        chipCriticos.setBorder("STOCK_CRITICO".equals(tipo) ? BorderFactory.createLineBorder(AppTheme.GOLD, 1) : BorderFactory.createLineBorder(AppTheme.BORDER, 1));
+        
+        chipBajos.setForeground("STOCK_BAJO".equals(tipo) ? AppTheme.GOLD_LIGHT : AppTheme.TEXT_SECONDARY);
+        chipBajos.setBorder("STOCK_BAJO".equals(tipo) ? BorderFactory.createLineBorder(AppTheme.BORDER, 1) : BorderFactory.createLineBorder(AppTheme.BORDER, 1));
+    }
+
     private void buscar() {
         if (currentWorker != null && !currentWorker.isDone())
             currentWorker.cancel(true);
-        String termino = txtBuscar.getText().trim();
+        
+        final String termino = txtBuscar.getText().trim();
+        final String tipoFiltro = this.filtroTipoSelected;
 
         currentWorker = new SwingWorker<List<Alerta>, Void>() {
             @Override
             protected List<Alerta> doInBackground() throws Exception {
-                return alertaService.buscarAlertas(termino);
+                // CORRECCIÓN: Ahora se envían ambos filtros de forma independiente al servicio corporativo
+                return alertaService.buscarAlertasCombinadas(termino, tipoFiltro);
             }
 
             @Override
@@ -287,7 +318,6 @@ public class AlertasPanel extends JPanel {
             mascaraHasta.setAllowsInvalid(false);
             mascaraHasta.setOverwriteMode(true);
         } catch (java.text.ParseException ex) {
-            // Control preventivo silencioso
         }
 
         final javax.swing.JFormattedTextField txtDesde = (mascaraDesde != null)
@@ -457,7 +487,6 @@ public class AlertasPanel extends JPanel {
                         });
                     }
                 } catch (Exception ex) {
-                    // Control preventivo silencioso en UI
                 }
             }
         };
@@ -496,24 +525,6 @@ public class AlertasPanel extends JPanel {
     }
 
     public void refresh() {
-        if (currentWorker != null && !currentWorker.isDone())
-            currentWorker.cancel(true);
-        currentWorker = new SwingWorker<List<Alerta>, Void>() {
-            @Override
-            protected List<Alerta> doInBackground() throws Exception {
-                return alertaService.obtenerAlertasActivas();
-            }
-
-            @Override
-            protected void done() {
-                try {
-                    if (!isCancelled()) {
-                        poblarTabla(get());
-                    }
-                } catch (Exception ex) {
-                }
-            }
-        };
-        currentWorker.execute();
+        buscar();
     }
 }
