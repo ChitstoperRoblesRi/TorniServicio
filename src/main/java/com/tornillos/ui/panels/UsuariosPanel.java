@@ -460,7 +460,26 @@ public class UsuariosPanel extends JPanel {
                 dlg.dispose();
                 refresh();
             } catch (Exception ex) {
-                JOptionPane.showMessageDialog(dlg, "Error: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+                String errorMsg = ex.getMessage() != null ? ex.getMessage() : "";
+                
+                if (errorMsg.contains("usuarios_username_key")) {
+                    JOptionPane.showMessageDialog(dlg, 
+                        "El nombre de usuario '" + txtUsername.getText().trim() + "' ya se encuentra registrado.\n" +
+                        "Por favor, elija un identificador de acceso diferente.", 
+                        "Nombre de usuario duplicado", JOptionPane.WARNING_MESSAGE);
+                    txtUsername.requestFocus();
+                    
+                } else if (errorMsg.contains("usuarios_email_key")) {
+                    JOptionPane.showMessageDialog(dlg, 
+                        "El correo electrónico '" + txtEmail.getText().trim() + "' ya está asociado a otro usuario.\n" +
+                        "Por favor, verifique el campo o ingrese una dirección distinta.", 
+                        "Correo electrónico duplicado", JOptionPane.WARNING_MESSAGE);
+                    txtEmail.requestFocus();
+                    
+                } else {
+                    // Fallback para cualquier otro error inesperado del sistema
+                    JOptionPane.showMessageDialog(dlg, "Error al procesar la solicitud:\n" + errorMsg, "Error", JOptionPane.ERROR_MESSAGE);
+                }
             }
         });
         btns.add(btnCancel);

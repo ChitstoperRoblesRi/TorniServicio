@@ -486,8 +486,11 @@ public class SalidasPanel extends JPanel {
         btnCancel.addActionListener(e -> dlg.dispose());
         btnGuardar.addActionListener(e -> {
             try {
-                Tornillo t = (Tornillo) cmbTornillo.getSelectedItem();
-                if (t == null) throw new IllegalArgumentException("Debe seleccionar un tornillo de la lista.");
+                Object seleccionadoObj = cmbTornillo.getSelectedItem();
+                if (!(seleccionadoObj instanceof Tornillo)) {
+                    throw new IllegalArgumentException("Debe seleccionar un tornillo válido de la lista desplegable.");
+                }
+                Tornillo t = (Tornillo) seleccionadoObj;
                 int cantidad = Integer.parseInt(txtCantidad.getText().trim());
                 BigDecimal precio = new BigDecimal(txtPrecio.getText().trim());
                 if (cantidad <= 0) throw new IllegalArgumentException("Cantidad debe ser mayor a 0");
