@@ -38,7 +38,7 @@ CREATE TABLE IF NOT EXISTS categorias (
 );
 
 INSERT INTO categorias (nombre, descripcion) VALUES
-    ('Métrico estándar', 'Tornillos con rosca métrica ISO para uso general'),
+    ('Metrico estandar', 'Tornillos con rosca métrica ISO para uso general'),
     ('Autoperforante', 'Tornillos que perforan y roscan su propio orificio en lámina o metal delgado'),
     ('Autorroscante', 'Tornillos que forman su propia rosca en materiales blandos sin necesidad de tuerca'),
     ('Madera', 'Tornillos diseñados para fijación en madera maciza, aglomerado o MDF'),

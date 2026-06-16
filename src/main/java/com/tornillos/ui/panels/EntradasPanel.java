@@ -325,19 +325,23 @@ public class EntradasPanel extends JPanel {
     private void eliminarSeleccionada() {
         if (!SessionManager.getInstance().isGerente())
             return;
-        int row = table.getSelectedRow();
-        if (row < 0) {
+        int viewRow = table.getSelectedRow();
+        if (viewRow < 0) {
             JOptionPane.showMessageDialog(this, "Selecciona una entrada.");
             return;
         }
-        String folio = tableModel.getValueAt(row, 1).toString();
+        
+        // CORRECCIÓN: Conversión del índice antes de extraer datos transaccionales del almacén
+        int modelRow = table.convertRowIndexToModel(viewRow);
+        String folio = tableModel.getValueAt(modelRow, 1).toString();
+        int idEntrada = (int) tableModel.getValueAt(modelRow, 0);
+
         int opt = JOptionPane.showConfirmDialog(this,
-                "Eliminar entrada " + folio + "?\nEsto revertira el stock del tornillo.",
+                "¿Eliminar entrada " + folio + "?\nEsto revertira el stock del tornillo.",
                 "Confirmar eliminacion", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
         if (opt == JOptionPane.YES_OPTION) {
             try {
-                // Cambiado: Ahora la UI llama al servicio para orquestar la eliminación y actualización
-                entradaService.eliminarEntrada((int) tableModel.getValueAt(row, 0));
+                entradaService.eliminarEntrada(idEntrada);
                 mainFrame.actualizarBadgeAlertas();
                 refresh();
                 JOptionPane.showMessageDialog(this, "Entrada eliminada y stock revertido.");

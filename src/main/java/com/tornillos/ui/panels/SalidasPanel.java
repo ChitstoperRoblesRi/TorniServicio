@@ -307,17 +307,25 @@ public class SalidasPanel extends JPanel {
     }
 
     private void eliminarSeleccionada() {
-        if (!SessionManager.getInstance().isGerente()) return;
-        int row = table.getSelectedRow();
-        if (row < 0) { JOptionPane.showMessageDialog(this, "Selecciona una salida."); return; }
-        String folio = tableModel.getValueAt(row, 1).toString();
+        if (!SessionManager.getInstance().isGerente()) 
+            return;
+        int viewRow = table.getSelectedRow();
+        if (viewRow < 0) { 
+            JOptionPane.showMessageDialog(this, "Selecciona una salida."); 
+            return; 
+        }
+        
+        // CORRECCIÓN: Conversión del índice antes de extraer datos transaccionales de mermas/ventas
+        int modelRow = table.convertRowIndexToModel(viewRow);
+        String folio = tableModel.getValueAt(modelRow, 1).toString();
+        int idSalida = (int) tableModel.getValueAt(modelRow, 0);
+
         int opt = JOptionPane.showConfirmDialog(this,
-            "Eliminar salida " + folio + "?\nEsto revertirá el stock del tornillo.",
+            "¿Eliminar salida " + folio + "?\nEsto revertirá el stock del tornillo.",
             "Confirmar eliminación", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
         if (opt == JOptionPane.YES_OPTION) {
             try {
-                // Cambiado: Invocación canalizada al servicio para procesar transacciones y reajustar las alertas
-                salidaService.eliminarSalida((int) tableModel.getValueAt(row, 0));
+                salidaService.eliminarSalida(idSalida);
                 mainFrame.actualizarBadgeAlertas();
                 refresh();
                 JOptionPane.showMessageDialog(this, "Salida eliminada y stock revertido.");

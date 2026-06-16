@@ -189,28 +189,28 @@ public class UsuariosPanel extends JPanel {
             @Override
             public void mouseClicked(MouseEvent e) {
                 if (e.getClickCount() == 2) {
-                    int row = table.getSelectedRow();
-                    if (row >= 0)
-                        abrirDialogoPorFila(row);
+                    int viewRow = table.getSelectedRow();
+                if (viewRow >= 0) {
+                    // CORRECCIÓN: Pasamos el índice del modelo traducido al método mapeador
+                    abrirDialogoPorFila(table.convertRowIndexToModel(viewRow));
                 }
             }
+        }
 
-            @Override
+            @Override 
             public void mousePressed(MouseEvent e) { evaluarClicContextual(e); }
-            @Override
+            @Override 
             public void mouseReleased(MouseEvent e) { evaluarClicContextual(e); }
 
-            // Busca este método dentro del MouseListener de tu JTable
             private void evaluarClicContextual(MouseEvent e) {
                 if (e.isPopupTrigger() || SwingUtilities.isRightMouseButton(e)) {
-                    int row = table.rowAtPoint(e.getPoint());
-                    if (row >= 0 && row < table.getRowCount()) {
-                        table.setRowSelectionInterval(row, row);
-                        
-                        // 🌟 NUEVO: Extrae el estado visual e inyéctalo en el generador del menú
-                        String estadoStr = tableModel.getValueAt(row, 6).toString();
+                    int viewRow = table.rowAtPoint(e.getPoint());
+                    if (viewRow >= 0 && viewRow < table.getRowCount()) {
+                        table.setRowSelectionInterval(viewRow, viewRow);
+                        int modelRow = table.convertRowIndexToModel(viewRow);
+                        String estadoStr = tableModel.getValueAt(modelRow, 6).toString();
                         boolean esActivo = "Activo".equals(estadoStr);
-                        
+
                         JPopupMenu menuContextual = buildContextMenu(esActivo);
                         menuContextual.show(table, e.getX(), e.getY());
                     } else {
@@ -231,12 +231,15 @@ public class UsuariosPanel extends JPanel {
         JMenuItem itemPassword = AppTheme.darkMenuItem("Cambiar contraseña", null);
         
         itemEditar.addActionListener(e -> {
-            int r = table.getSelectedRow();
-            if (r >= 0) abrirDialogoPorFila(r);
+            int viewRow = table.getSelectedRow();
+            if (viewRow >= 0) abrirDialogoPorFila(table.convertRowIndexToModel(viewRow));
         });
         itemPassword.addActionListener(e -> {
-            int r = table.getSelectedRow();
-            if (r >= 0) cambiarPassword((int) tableModel.getValueAt(r, 0));
+            int viewRow = table.getSelectedRow();
+            if (viewRow >= 0) {
+                int modelRow = table.convertRowIndexToModel(viewRow);
+                cambiarPassword((int) tableModel.getValueAt(modelRow, 0));
+            }
         });
         
         popup.add(itemEditar);
@@ -244,19 +247,24 @@ public class UsuariosPanel extends JPanel {
         popup.add(itemPassword);
         popup.add(AppTheme.darkSeparator());
         
-        // Muestra únicamente la acción opuesta al estado actual del operador
         if (esActivo) {
             JMenuItem itemInhabilitar = AppTheme.darkMenuItem("Inhabilitar usuario", null);
             itemInhabilitar.addActionListener(e -> {
-                int r = table.getSelectedRow();
-                if (r >= 0) cambiarEstado((int) tableModel.getValueAt(r, 0), false);
+                int viewRow = table.getSelectedRow();
+                if (viewRow >= 0) {
+                    int modelRow = table.convertRowIndexToModel(viewRow);
+                    cambiarEstado((int) tableModel.getValueAt(modelRow, 0), false);
+                }
             });
             popup.add(itemInhabilitar);
         } else {
             JMenuItem itemHabilitar = AppTheme.darkMenuItem("Habilitar usuario", null);
             itemHabilitar.addActionListener(e -> {
-                int r = table.getSelectedRow();
-                if (r >= 0) cambiarEstado((int) tableModel.getValueAt(r, 0), true);
+                int viewRow = table.getSelectedRow();
+                if (viewRow >= 0) {
+                    int modelRow = table.convertRowIndexToModel(viewRow);
+                    cambiarEstado((int) tableModel.getValueAt(modelRow, 0), true);
+                }
             });
             popup.add(itemHabilitar);
         }
