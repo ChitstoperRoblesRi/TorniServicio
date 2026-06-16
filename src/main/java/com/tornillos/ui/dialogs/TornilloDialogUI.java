@@ -280,30 +280,74 @@ class TornilloDialogUI {
     }
 
     private void generarPropuestaCodigo() {
+        // 1. Identificar el sistema de medida para asignar el prefijo correcto
+        Object sistemaSel = cmbSistemaMedida.getSelectedItem();
+        boolean esImperial = sistemaSel != null && sistemaSel.toString().toUpperCase().contains("IMP");
+        String prefijoSistema = esImperial ? "P" : "M"; // P = Pulgadas, M = Métrico
+
+        // 2. Mapeo inteligente del tipo de cabeza para evitar colisiones (Ej: Hexagonal vs Allen)
         String cabeza = (String) cmbCabeza.getSelectedItem();
         String parteCabeza = "GEN";
         if (cabeza != null && !cabeza.trim().isEmpty()) {
-            String limpio = cabeza.trim().toUpperCase();
-            parteCabeza = limpio.length() >= 3 ? limpio.substring(0, 3) : limpio;
+            String c = cabeza.trim().toLowerCase();
+            if (c.contains("allen") || c.contains("hueco")) parteCabeza = "ALN";
+            else if (c.contains("hexagonal")) parteCabeza = "HEX";
+            else if (c.contains("phillips"))  parteCabeza = "PHI";
+            else if (c.contains("plana"))     parteCabeza = "PLA";
+            else if (c.contains("torx"))      parteCabeza = "TRX";
+            else if (c.contains("carruaje"))  parteCabeza = "CAR";
+            else if (c.length() >= 3)         parteCabeza = c.substring(0, 3).toUpperCase();
         }
 
-        String diametro = txtDiametro.getText().trim().toUpperCase();
-        String parteDiametro = diametro.isEmpty() ? "X" : diametro.replace("/", "").replace(" ", "");
-
-        String longitud = txtLongitud.getText().trim().toUpperCase();
-        String parteLongitud = longitud.isEmpty() ? "X" : longitud.replace("/", "").replace(" ", "");
-
+        // 3. Mapeo inteligente del material para evitar el cuello de botella del "-AC-"
         String material = (String) cmbMaterial.getSelectedItem();
         String parteMaterial = "GE";
         if (material != null && !material.trim().isEmpty()) {
-            String limpio = material.trim().toUpperCase();
-            parteMaterial = limpio.length() >= 2 ? limpio.substring(0, 2) : limpio;
+            String m = material.trim().toLowerCase();
+            if (m.contains("carbono"))          parteMaterial = "CRB"; // Acero al Carbono
+            else if (m.contains("304"))         parteMaterial = "I30"; // Inoxidable 304
+            else if (m.contains("316"))         parteMaterial = "I31"; // Inoxidable 316
+            else if (m.contains("galvanizado")) parteMaterial = "GAL"; 
+            else if (m.contains("zincado"))     parteMaterial = "ZNC"; // Acero Zincado
+            else if (m.contains("latón") || m.contains("laton")) parteMaterial = "LAT";
+            else if (m.contains("nylon") || m.contains("plástico") || m.contains("plastico")) parteMaterial = "NYL";
+            // =========================================================================
+            // NUEVOS MAPEOS AGREGADOS PARA MATERIALES FALTANTES
+            // =========================================================================
+            else if (m.contains("cobre"))       parteMaterial = "COB";
+            else if (m.contains("aluminio"))    parteMaterial = "ALU";
+            else if (m.contains("titanio"))     parteMaterial = "TIT";
+            else if (m.equals("zinc"))          parteMaterial = "ZIN"; // Zinc Puro (diferente de zincado)
         }
 
-        String codigoSugerido = "TOR-" + parteCabeza + "-M" + parteDiametro + "-" + parteMaterial + "-L" + parteLongitud;
+        // 4. Procesar Diámetro (Si es fracción 1/4 -> 1_4 en lugar de 14; evita colisiones con M14)
+        String diametro = txtDiametro.getText().trim().toUpperCase();
+        String parteDiametro = diametro.isEmpty() ? "X" : diametro.replace("/", "_").replace(" ", "");
+
+        // 5. Procesar Longitud (Si es mixta como 1 1/2 -> 1_1_2)
+        String longitud = txtLongitud.getText().trim().toUpperCase();
+        String parteLongitud = longitud.isEmpty() ? "X" : longitud.replace("/", "_").replace(" ", "_");
+
+        // 6. PROPIEDAD CRÍTICA: Procesar e Incluir Paso de Rosca / TPI (Antes se ignoraba)
+        String paso = txtPaso.getText().trim().toUpperCase();
+        String partePaso = "X";
+        if (!paso.isEmpty()) {
+            // Reemplazamos puntos decimales por guion bajo para limpieza visual (Ej: 1.25 -> 1_25)
+            partePaso = paso.replace(".", "_");
+        }
+
+        // 7. Construcción del código final estructurado e inequívoco
+        // Formato resultante: TOR-[CABEZA]-[SISTEMA][DIÁMETRO]-[MATERIAL]-L[LONGITUD]-P[PASO/TPI]
+        String codigoSugerido = String.format("TOR-%s-%s%s-%s-L%s-P%s", 
+                parteCabeza, 
+                prefijoSistema, 
+                parteDiametro, 
+                parteMaterial, 
+                parteLongitud, 
+                partePaso
+        );
 
         txtCodigo.setText(codigoSugerido);
-        
         txtCodigo.requestFocus();
     }
 
