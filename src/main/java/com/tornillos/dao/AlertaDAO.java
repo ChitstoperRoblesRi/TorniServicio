@@ -1,33 +1,19 @@
 package com.tornillos.dao;
 
-import com.tornillos.config.DatabaseConfig;
-import com.tornillos.model.Alerta;
-
-import java.sql.*;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.List;
+
+import com.tornillos.config.DatabaseConfig;
+import com.tornillos.model.Alerta;
 
 public class AlertaDAO {
 
     public void crear(Alerta a) throws SQLException {
-        String check = "SELECT id FROM alertas WHERE tornillo_id=? AND tipo=? LIMIT 1";
-        try (PreparedStatement ps = DatabaseConfig.getConnection().prepareStatement(check)) {
-            ps.setInt(1, a.getTornilloId());
-            ps.setString(2, a.getTipo());
-            try (ResultSet rs = ps.executeQuery()) {
-                if (rs.next()) {
-                    int existingId = rs.getInt("id");
-                    String update = "UPDATE alertas SET mensaje=?, creada_en=NOW() WHERE id=?";
-                    try (PreparedStatement ps2 = DatabaseConfig.getConnection().prepareStatement(update)) {
-                        ps2.setString(1, a.getMensaje());
-                        ps2.setInt(2, existingId);
-                        ps2.executeUpdate();
-                    }
-                    a.setId(existingId);
-                    return;
-                }
-            }
-        }
         String sql = "INSERT INTO alertas (tornillo_id, tipo, mensaje) VALUES (?,?,?)";
         try (PreparedStatement ps = DatabaseConfig.getConnection().prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             ps.setInt(1, a.getTornilloId());
@@ -42,12 +28,49 @@ public class AlertaDAO {
         }
     }
 
+    public boolean existeAlertaActivaEvitarRepetidos(int tornilloId, String tipo) throws SQLException {
+        String sqlAlerta = "SELECT creada_en FROM alertas WHERE tornillo_id = ? AND tipo = ? ORDER BY creada_en DESC LIMIT 1";
+        Timestamp fechaUltimaAlerta = null;
+        
+        try (PreparedStatement ps = DatabaseConfig.getConnection().prepareStatement(sqlAlerta)) {
+            ps.setInt(1, tornilloId);
+            ps.setString(2, tipo);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    fechaUltimaAlerta = rs.getTimestamp("creada_en");
+                }
+            }
+        }
+        
+        if (fechaUltimaAlerta == null) {
+            return false;
+        }
+        
+        String sqlEntradaIntermedia = "SELECT 1 FROM entradas WHERE tornillo_id = ? AND fecha > ? AND activo = true LIMIT 1";
+        try (PreparedStatement ps = DatabaseConfig.getConnection().prepareStatement(sqlEntradaIntermedia)) {
+            ps.setInt(1, tornilloId);
+            ps.setTimestamp(2, fechaUltimaAlerta);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return false; 
+                }
+            }
+        }
+        
+        return true;
+    }
+
     public List<Alerta> listarActivas() throws SQLException {
         List<Alerta> lista = new ArrayList<>();
         String sql = "SELECT DISTINCT ON (a.tornillo_id) a.*, t.nombre AS tornillo_nombre, t.codigo AS tornillo_codigo " +
                      "FROM alertas a " +
                      "JOIN tornillos t ON a.tornillo_id = t.id " +
                      "WHERE t.activo = true AND t.stock_actual <= t.stock_minimo " +
+                     "AND a.tipo = (CASE " +
+                     "    WHEN t.stock_actual = 0 THEN 'SIN_STOCK' " +
+                     "    WHEN t.stock_actual <= t.stock_minimo * 0.5 THEN 'STOCK_CRITICO' " +
+                     "    ELSE 'STOCK_BAJO' " +
+                     "END) " +
                      "ORDER BY a.tornillo_id, a.creada_en DESC";
         try (Statement st = DatabaseConfig.getConnection().createStatement();
              ResultSet rs = st.executeQuery(sql)) {
@@ -77,6 +100,11 @@ public class AlertaDAO {
                      "FROM alertas a " +
                      "JOIN tornillos t ON a.tornillo_id = t.id " +
                      "WHERE t.activo = true AND t.stock_actual <= t.stock_minimo " +
+                     "AND a.tipo = (CASE " +
+                     "    WHEN t.stock_actual = 0 THEN 'SIN_STOCK' " +
+                     "    WHEN t.stock_actual <= t.stock_minimo * 0.5 THEN 'STOCK_CRITICO' " +
+                     "    ELSE 'STOCK_BAJO' " +
+                     "END) " +
                      "AND (LOWER(t.nombre) LIKE LOWER(?) OR LOWER(t.codigo) LIKE LOWER(?)) " +
                      "ORDER BY a.tornillo_id, a.creada_en DESC";
         try (PreparedStatement ps = DatabaseConfig.getConnection().prepareStatement(sql)) {
@@ -96,7 +124,7 @@ public class AlertaDAO {
         String sql = "SELECT a.*, t.nombre AS tornillo_nombre, t.codigo AS tornillo_codigo " +
                      "FROM alertas a JOIN tornillos t ON a.tornillo_id=t.id " +
                      "WHERE a.tornillo_id=? AND a.tipo=? AND a.enviada_email=false " +
-                     "LIMIT 1";
+                     "ORDER BY a.creada_en DESC LIMIT 1";
         try (PreparedStatement ps = DatabaseConfig.getConnection().prepareStatement(sql)) {
             ps.setInt(1, tornilloId);
             ps.setString(2, tipo);
@@ -131,21 +159,48 @@ public class AlertaDAO {
         return lista;
     }
 
-    // Método agregado para resolver error en AlertasPanel lineas 202 y 218
-    public List<Alerta> listarHistorial() throws SQLException {
+    public List<Alerta> listarHistorial(String desde, String hasta, String criterio) throws SQLException {
         List<Alerta> lista = new ArrayList<>();
-        String sql = "SELECT a.*, t.nombre AS tornillo_nombre, t.codigo AS tornillo_codigo " +
-                     "FROM alertas a JOIN tornillos t ON a.tornillo_id=t.id ORDER BY a.creada_en DESC";
-        try (Statement st = DatabaseConfig.getConnection().createStatement();
-             ResultSet rs = st.executeQuery(sql)) {
-            while (rs.next()) {
-                lista.add(mapear(rs));
+        StringBuilder sb = new StringBuilder(
+            "SELECT a.*, t.nombre AS tornillo_nombre, t.codigo AS tornillo_codigo " +
+            "FROM alertas a JOIN tornillos t ON a.tornillo_id = t.id WHERE 1=1"
+        );
+        
+        if (desde != null && !desde.isEmpty()) {
+            sb.append(" AND a.creada_en >= ?");
+        }
+        if (hasta != null && !hasta.isEmpty()) {
+            sb.append(" AND a.creada_en <= ?");
+        }
+        if (criterio != null && !criterio.isEmpty()) {
+            sb.append(" AND (LOWER(t.nombre) LIKE LOWER(?) OR LOWER(t.codigo) LIKE LOWER(?))");
+        }
+        
+        sb.append(" ORDER BY a.creada_en DESC");
+
+        try (PreparedStatement ps = DatabaseConfig.getConnection().prepareStatement(sb.toString())) {
+            int paramIdx = 1;
+            if (desde != null && !desde.isEmpty()) {
+                ps.setTimestamp(paramIdx++, Timestamp.valueOf(desde + " 00:00:00"));
+            }
+            if (hasta != null && !hasta.isEmpty()) {
+                ps.setTimestamp(paramIdx++, Timestamp.valueOf(hasta + " 23:59:59"));
+            }
+            if (criterio != null && !criterio.isEmpty()) {
+                String p = "%" + criterio + "%";
+                ps.setString(paramIdx++, p);
+                ps.setString(paramIdx++, p);
+            }
+            
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    lista.add(mapear(rs));
+                }
             }
         }
         return lista;
     }
 
-    // Método agregado para resolver error en AlertasPanel linea 189
     public void eliminar(int id) throws SQLException {
         String sql = "DELETE FROM alertas WHERE id=?";
         try (PreparedStatement ps = DatabaseConfig.getConnection().prepareStatement(sql)) {
@@ -154,12 +209,54 @@ public class AlertaDAO {
         }
     }
 
-    // Método agregado para resolver error en AlertasPanel linea 206
     public void eliminarTodas() throws SQLException {
         String sql = "DELETE FROM alertas";
         try (Statement st = DatabaseConfig.getConnection().createStatement()) {
             st.executeUpdate(sql);
         }
+    }
+
+    public List<Alerta> buscarConFiltroCruzado(String criterio, String tipoFiltro) throws SQLException {
+        List<Alerta> lista = new ArrayList<>();
+        StringBuilder sb = new StringBuilder(
+            "SELECT DISTINCT ON (a.tornillo_id) a.*, t.nombre AS tornillo_nombre, t.codigo AS tornillo_codigo " +
+            "FROM alertas a JOIN tornillos t ON a.tornillo_id = t.id " +
+            "WHERE t.activo = true AND t.stock_actual <= t.stock_minimo " +
+            "AND a.tipo = (CASE " +
+            "    WHEN t.stock_actual = 0 THEN 'SIN_STOCK' " +
+            "    WHEN t.stock_actual <= t.stock_minimo * 0.5 THEN 'STOCK_CRITICO' " +
+            "    ELSE 'STOCK_BAJO' " +
+            "END) "
+        );
+        
+        if (tipoFiltro != null && !tipoFiltro.isEmpty()) {
+            sb.append(" AND a.tipo = ? ");
+        }
+        if (criterio != null && !criterio.isEmpty()) {
+            sb.append(" AND (LOWER(t.nombre) LIKE LOWER(?) OR LOWER(t.codigo) LIKE LOWER(?) OR LOWER(a.mensaje) LIKE LOWER(?)) ");
+        }
+        
+        sb.append(" ORDER BY a.tornillo_id, a.creada_en DESC");
+
+        try (PreparedStatement ps = DatabaseConfig.getConnection().prepareStatement(sb.toString())) {
+            int idx = 1;
+            if (tipoFiltro != null && !tipoFiltro.isEmpty()) {
+                ps.setString(idx++, tipoFiltro);
+            }
+            if (criterio != null && !criterio.isEmpty()) {
+                String p = "%" + criterio + "%";
+                ps.setString(idx++, p);
+                ps.setString(idx++, p);
+                ps.setString(idx++, p);
+            }
+            
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    lista.add(mapear(rs));
+                }
+            }
+        }
+        return lista;
     }
 
     private Alerta mapear(ResultSet rs) throws SQLException {

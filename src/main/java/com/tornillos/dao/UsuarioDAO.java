@@ -9,23 +9,31 @@ import java.util.List;
 
 public class UsuarioDAO {
 
+    // 🌟 CORREGIDO: Permite recuperar usuarios inactivos para validar su estado en la UI
     public Usuario autenticar(String username, String password) throws SQLException {
+        // Se eliminó 'AND u.activo = true' para que la base de datos valide la contraseña primero
         String sql = "SELECT u.*, r.nombre AS rol FROM usuarios u " +
                 "JOIN roles r ON u.rol_id = r.id " +
-                "WHERE u.username = ? AND u.activo = true " +
+                "WHERE u.username = ? " +
                 "AND u.password_hash = crypt(?, u.password_hash)";
+                
         try (PreparedStatement ps = DatabaseConfig.getConnection().prepareStatement(sql)) {
             ps.setString(1, username);
             ps.setString(2, password);
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
                     Usuario u = mapear(rs);
-                    actualizarUltimaSesion(u.getId());
-                    return u;
+                    
+                    // 🌟 PROTECCIÓN DE UX: Solo registra actividad si el usuario realmente va a poder entrar
+                    if (u.isActivo()) {
+                        actualizarUltimaSesion(u.getId());
+                    }
+                    
+                    return u; // Devuelve el objeto (activo o inactivo) al LoginFrame
                 }
             }
         }
-        return null;
+        return null; // Solo retorna null si el usuario o la contraseña de verdad no existen
     }
 
     public List<Usuario> listarTodos() throws SQLException {

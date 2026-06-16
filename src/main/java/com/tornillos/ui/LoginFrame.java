@@ -204,6 +204,15 @@ public class LoginFrame extends JFrame {
                 try {
                     Usuario u = get();
                     if (u != null) {
+                        // 🌟 NUEVO: Paso de UX defensiva. Si las credenciales son correctas pero está inactivo:
+                        if (!u.isActivo()) {
+                            lblStatus.setForeground(AppTheme.DANGER_TEXT);
+                            lblStatus.setText("Cuenta inhabilitada. Contacte al administrador.");
+                            txtPassword.setText("");
+                            return; // Frena el inicio de sesión
+                        }
+
+                        // Si está activo, inicia sesión normalmente
                         SessionManager.getInstance().iniciarSesion(u);
                         dispose();
                         SwingUtilities.invokeLater(MainFrame::new);
@@ -215,7 +224,7 @@ public class LoginFrame extends JFrame {
                 } catch (Exception ex) {
                     lblStatus.setForeground(AppTheme.DANGER_TEXT);
                     String msg = ex.getCause() != null ? ex.getCause().getMessage() : ex.getMessage();
-                    lblStatus.setText("Error de conexion: " + msg);
+                    lblStatus.setText("Error de conexión: " + msg);
                 }
             }
         };

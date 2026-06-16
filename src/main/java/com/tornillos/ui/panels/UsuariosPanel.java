@@ -1,15 +1,44 @@
 package com.tornillos.ui.panels;
 
+import java.awt.BorderLayout;
+import java.awt.Component;
+import java.awt.Dimension;
+import java.awt.FlowLayout;
+import java.awt.Font;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
+import java.awt.GridLayout;
+import java.awt.Insets;
+import java.awt.event.KeyAdapter;
+import java.awt.event.KeyEvent;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+import java.util.List;
+
+import javax.swing.BorderFactory;
+import javax.swing.JButton;
+import javax.swing.JComboBox;
+import javax.swing.JComponent;
+import javax.swing.JDialog;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JMenuItem;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.JPasswordField;
+import javax.swing.JPopupMenu;
+import javax.swing.JTable;
+import javax.swing.JTextField;
+import javax.swing.SwingConstants;
+import javax.swing.SwingUtilities;
+import javax.swing.SwingWorker;
+import javax.swing.table.DefaultTableModel;
+import javax.swing.table.TableCellRenderer;
+
 import com.tornillos.config.AppTheme;
 import com.tornillos.model.Usuario;
-import com.tornillos.service.UsuarioService;
 import com.tornillos.service.SessionManager;
-
-import javax.swing.*;
-import javax.swing.table.*;
-import java.awt.*;
-import java.awt.event.*;
-import java.util.List;
+import com.tornillos.service.UsuarioService;
 
 public class UsuariosPanel extends JPanel {
     private JTable table;
@@ -17,9 +46,11 @@ public class UsuariosPanel extends JPanel {
     private JTextField txtBuscar;
     private JLabel lblConteo;
     
-    // Cambiado: El panel ahora depende estrictamente de su Capa de Servicio dedicada
     private final UsuarioService usuarioService = new UsuarioService();
 
+    private final java.time.format.DateTimeFormatter visualFormatter = 
+            java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
+    
     public UsuariosPanel() {
         setBackground(AppTheme.BG_SURFACE);
         setLayout(new BorderLayout());
@@ -83,18 +114,17 @@ public class UsuariosPanel extends JPanel {
         txtBuscar.addKeyListener(new KeyAdapter() {
             @Override
             public void keyReleased(KeyEvent e) {
-                buscar();
+                buscar(); // 🌟 CORREGIDO (Problema 3): Búsqueda reactiva automática por cada letra
             }
         });
-        JButton btnBuscar = AppTheme.primaryButton("Buscar");
+        
+        // 🌟 CORREGIDO (Problema 3): Se elimina el botón "Buscar" físico redundante para limpiar la interfaz
         JButton btnLimpiar = AppTheme.secondaryButton("X Limpiar");
-        btnBuscar.addActionListener(e -> buscar());
         btnLimpiar.addActionListener(e -> {
             txtBuscar.setText("");
             refresh();
         });
         bar.add(txtBuscar);
-        bar.add(btnBuscar);
         bar.add(btnLimpiar);
         p.add(bar, BorderLayout.NORTH);
 
@@ -125,6 +155,16 @@ public class UsuariosPanel extends JPanel {
                     c.setBackground(AppTheme.ACCENT);
                     c.setForeground(AppTheme.GOLD_LIGHT);
                 }
+
+                // 🌟 CORREGIDO (Problema 4): Centrado rígido de las columnas Rol (5), Estado (6) y Última sesión (7)
+                if (c instanceof JLabel) {
+                    JLabel label = (JLabel) c;
+                    if (col == 5 || col == 6 || col == 7) {
+                        label.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
+                    } else {
+                        label.setHorizontalAlignment(javax.swing.SwingConstants.LEFT);
+                    }
+                }
                 return c;
             }
         };
@@ -132,7 +172,18 @@ public class UsuariosPanel extends JPanel {
         table.getColumnModel().getColumn(0).setMinWidth(0);
         table.getColumnModel().getColumn(0).setMaxWidth(0);
 
-        final JPopupMenu menuContextual = buildContextMenu();
+        // 🌟 NUEVO (Problema 4): Centrar los títulos de los encabezados correspondientes de la tabla
+        for (int col : new int[]{ 5, 6, 7 }) {
+            table.getColumnModel().getColumn(col).setHeaderRenderer((t, val, sel, focus, r, c) -> {
+                Component comp = t.getTableHeader().getDefaultRenderer().getTableCellRendererComponent(t, val, sel, focus, r, c);
+                if (comp instanceof JLabel) {
+                    ((JLabel) comp).setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
+                }
+                return comp;
+            });
+        }
+
+        // final JPopupMenu menuContextual = buildContextMenu();
 
         table.addMouseListener(new MouseAdapter() {
             @Override
@@ -149,11 +200,18 @@ public class UsuariosPanel extends JPanel {
             @Override
             public void mouseReleased(MouseEvent e) { evaluarClicContextual(e); }
 
+            // Busca este método dentro del MouseListener de tu JTable
             private void evaluarClicContextual(MouseEvent e) {
                 if (e.isPopupTrigger() || SwingUtilities.isRightMouseButton(e)) {
                     int row = table.rowAtPoint(e.getPoint());
                     if (row >= 0 && row < table.getRowCount()) {
                         table.setRowSelectionInterval(row, row);
+                        
+                        // 🌟 NUEVO: Extrae el estado visual e inyéctalo en el generador del menú
+                        String estadoStr = tableModel.getValueAt(row, 6).toString();
+                        boolean esActivo = "Activo".equals(estadoStr);
+                        
+                        JPopupMenu menuContextual = buildContextMenu(esActivo);
                         menuContextual.show(table, e.getX(), e.getY());
                     } else {
                         table.clearSelection();
@@ -166,12 +224,11 @@ public class UsuariosPanel extends JPanel {
         return p;
     }
 
-    private JPopupMenu buildContextMenu() {
+    // 🌟 CORREGIDO: Ahora el menú se adapta dinámicamente al estado real del usuario seleccionado
+    private JPopupMenu buildContextMenu(boolean esActivo) {
         JPopupMenu popup = AppTheme.darkPopup();
         JMenuItem itemEditar = AppTheme.darkMenuItem("Editar usuario", null);
         JMenuItem itemPassword = AppTheme.darkMenuItem("Cambiar contraseña", null);
-        JMenuItem itemInhabilitar = AppTheme.darkMenuItem("Inhabilitar usuario", null);
-        JMenuItem itemHabilitar = AppTheme.darkMenuItem("Habilitar usuario", null);
         
         itemEditar.addActionListener(e -> {
             int r = table.getSelectedRow();
@@ -181,21 +238,28 @@ public class UsuariosPanel extends JPanel {
             int r = table.getSelectedRow();
             if (r >= 0) cambiarPassword((int) tableModel.getValueAt(r, 0));
         });
-        itemInhabilitar.addActionListener(e -> {
-            int r = table.getSelectedRow();
-            if (r >= 0) cambiarEstado((int) tableModel.getValueAt(r, 0), false);
-        });
-        itemHabilitar.addActionListener(e -> {
-            int r = table.getSelectedRow();
-            if (r >= 0) cambiarEstado((int) tableModel.getValueAt(r, 0), true);
-        });
         
         popup.add(itemEditar);
         popup.add(AppTheme.darkSeparator());
         popup.add(itemPassword);
         popup.add(AppTheme.darkSeparator());
-        popup.add(itemInhabilitar);
-        popup.add(itemHabilitar);
+        
+        // Muestra únicamente la acción opuesta al estado actual del operador
+        if (esActivo) {
+            JMenuItem itemInhabilitar = AppTheme.darkMenuItem("Inhabilitar usuario", null);
+            itemInhabilitar.addActionListener(e -> {
+                int r = table.getSelectedRow();
+                if (r >= 0) cambiarEstado((int) tableModel.getValueAt(r, 0), false);
+            });
+            popup.add(itemInhabilitar);
+        } else {
+            JMenuItem itemHabilitar = AppTheme.darkMenuItem("Habilitar usuario", null);
+            itemHabilitar.addActionListener(e -> {
+                int r = table.getSelectedRow();
+                if (r >= 0) cambiarEstado((int) tableModel.getValueAt(r, 0), true);
+            });
+            popup.add(itemHabilitar);
+        }
         return popup;
     }
 
@@ -204,7 +268,6 @@ public class UsuariosPanel extends JPanel {
         SwingWorker<List<Usuario>, Void> w = new SwingWorker<>() {
             @Override
             protected List<Usuario> doInBackground() throws Exception {
-                // Cambiado: Invocación delegada a través del servicio
                 return usuarioService.buscarUsuarios(t);
             }
 
@@ -227,7 +290,6 @@ public class UsuariosPanel extends JPanel {
                 JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE);
         if (opt == JOptionPane.YES_OPTION) {
             try {
-                // Cambiado: El servicio procesa el cambio de estado operativo
                 usuarioService.cambiarEstadoUsuario(id, habilitar);
                 refresh();
             } catch (Exception ex) {
@@ -239,7 +301,7 @@ public class UsuariosPanel extends JPanel {
     private void abrirDialogoUsuario(Usuario usuario) {
         JDialog dlg = new JDialog((JFrame) SwingUtilities.getWindowAncestor(this),
                 usuario == null ? "Nuevo Usuario" : "Editar Usuario", true);
-        dlg.setSize(440, 400);
+        dlg.setSize(440, 420); // Incrementamos ligeramente el alto para comodidad de las alertas
         dlg.setLocationRelativeTo(this);
         dlg.getContentPane().setBackground(AppTheme.BG_CARD);
 
@@ -250,10 +312,11 @@ public class UsuariosPanel extends JPanel {
         gbc.fill = GridBagConstraints.HORIZONTAL;
         gbc.insets = new Insets(6, 6, 6, 6);
 
-        JTextField txtNombre = AppTheme.styledField("Nombre");
-        JTextField txtApellido = AppTheme.styledField("Apellido");
-        JTextField txtEmail = AppTheme.styledField("Email");
-        JTextField txtUsername = AppTheme.styledField("Username");
+        // 🌟 CORREGIDO (Problema 2): Cajas de texto limpias sin texto por defecto para eliminar fricción al operador
+        JTextField txtNombre = AppTheme.styledField("");
+        JTextField txtApellido = AppTheme.styledField("");
+        JTextField txtEmail = AppTheme.styledField("");
+        JTextField txtUsername = AppTheme.styledField("");
         
         if (usuario != null) {
             txtNombre.setText(usuario.getNombre());
@@ -265,17 +328,64 @@ public class UsuariosPanel extends JPanel {
         }
         
         JPasswordField txtPass = AppTheme.styledPasswordField();
+        
         JComboBox<String> cmbRol = AppTheme.styledCombo(new String[] { "EMPLEADO", "GERENTE" });
         if (usuario != null && "GERENTE".equals(usuario.getRol()))
             cmbRol.setSelectedIndex(1);
 
-        addRow(form, gbc, 0, "Nombre:", txtNombre);
-        addRow(form, gbc, 1, "Apellido:", txtApellido);
-        addRow(form, gbc, 2, "Email:", txtEmail);
-        addRow(form, gbc, 3, "Username:", txtUsername);
+        cmbRol.setUI(new javax.swing.plaf.basic.BasicComboBoxUI() {
+            @Override
+            protected JButton createArrowButton() {
+                JButton btn = new JButton("▼");
+                btn.setFont(new Font("Segoe UI", Font.PLAIN, 10));
+                btn.setForeground(AppTheme.BG_BASE);
+                btn.setBackground(AppTheme.BG_CARD_HOVER);
+                btn.setBorder(BorderFactory.createEmptyBorder(2, 6, 2, 6));
+                btn.setContentAreaFilled(true);
+                btn.setFocusable(false);
+                return btn;
+            }
+        });
+
+        cmbRol.setBorder(BorderFactory.createLineBorder(AppTheme.BORDER, 1));
+
+        cmbRol.setEditor(new javax.swing.plaf.basic.BasicComboBoxEditor() {
+            @Override
+            protected JTextField createEditorComponent() {
+                JTextField txt = new JTextField();
+                txt.setBackground(AppTheme.BG_CARD_HOVER);
+                txt.setForeground(AppTheme.TEXT_PRIMARY);
+                txt.setBorder(BorderFactory.createEmptyBorder(2, 6, 2, 6));
+                txt.setEditable(false);
+                txt.addMouseListener(new java.awt.event.MouseAdapter() {
+                    @Override
+                    public void mousePressed(java.awt.event.MouseEvent e) {
+                        if (cmbRol.isEnabled()) {
+                            if (cmbRol.isPopupVisible()) cmbRol.hidePopup();
+                            else cmbRol.showPopup();
+                        }
+                    }
+                });
+                return txt;
+            }
+        });
+        cmbRol.setEditable(true);
+        
+        Object inicialMotivo = cmbRol.getSelectedItem();
+        cmbRol.getEditor().setItem(inicialMotivo != null ? inicialMotivo.toString() : "");
+        cmbRol.addActionListener(ev -> {
+            Object item = cmbRol.getSelectedItem();
+            cmbRol.getEditor().setItem(item != null ? item.toString() : "");
+        });
+
+        // 🌟 NUEVO: Añadido indicador '*' en las etiquetas para guiar visualmente al usuario
+        addRow(form, gbc, 0, "Nombre *:", txtNombre);
+        addRow(form, gbc, 1, "Apellido *:", txtApellido);
+        addRow(form, gbc, 2, "Email *:", txtEmail);
+        addRow(form, gbc, 3, "Username *:", txtUsername);
         if (usuario == null)
-            addRow(form, gbc, 4, "Contraseña:", txtPass);
-        addRow(form, gbc, usuario == null ? 5 : 4, "Rol:", cmbRol);
+            addRow(form, gbc, 4, "Contraseña *:", txtPass);
+        addRow(form, gbc, usuario == null ? 5 : 4, "Rol *:", cmbRol);
 
         JPanel btns = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
         btns.setOpaque(false);
@@ -284,28 +394,59 @@ public class UsuariosPanel extends JPanel {
         btnCancel.addActionListener(e -> dlg.dispose());
         btnGuardar.addActionListener(e -> {
             try {
+                // 🌟 CORREGIDO (Problema 1): Capa defensiva estricta de sanitización y validación
+                String nombre = txtNombre.getText().trim();
+                String apellido = txtApellido.getText().trim();
+                String email = txtEmail.getText().trim();
+                String username = txtUsername.getText().trim();
+
+                if (nombre.isEmpty() || apellido.isEmpty() || email.isEmpty() || username.isEmpty()) {
+                    JOptionPane.showMessageDialog(dlg, "Todos los campos marcados con (*) son estrictamente obligatorios.", "Campos vacíos", JOptionPane.WARNING_MESSAGE);
+                    return;
+                }
+                
+                // Expresión regular estándar para verificar estructura de correo electrónico
+                if (!email.matches("^[A-Za-z0-9+_.-]+@(.+)$")) {
+                    JOptionPane.showMessageDialog(dlg, "El formato del correo electrónico ingresado no es válido.", "Formato Inválido", JOptionPane.WARNING_MESSAGE);
+                    txtEmail.requestFocus();
+                    return;
+                }
+
+                // 🌟 CORREGIDO: Validación simétrica de longitud mínima para altas de nuevos usuarios
+                String passRaw = new String(txtPass.getPassword());
+                if (usuario == null) {
+                    if (passRaw.isEmpty()) {
+                        JOptionPane.showMessageDialog(dlg, "La contraseña es requerida para el registro de nuevos usuarios.", "Campos vacíos", JOptionPane.WARNING_MESSAGE);
+                        txtPass.requestFocus();
+                        return;
+                    }
+                    if (passRaw.length() < 6) {
+                        JOptionPane.showMessageDialog(dlg, "La contraseña es demasiado débil.\nDebe contener un mínimo de 6 caracteres.", "Seguridad Insuficiente", JOptionPane.WARNING_MESSAGE);
+                        txtPass.requestFocus();
+                        return;
+                    }
+                }
+
                 if (usuario == null) {
                     Usuario u = new Usuario();
-                    u.setNombre(txtNombre.getText().trim());
-                    u.setApellido(txtApellido.getText().trim());
-                    u.setEmail(txtEmail.getText().trim());
-                    u.setUsername(txtUsername.getText().trim());
+                    u.setNombre(nombre);
+                    u.setApellido(apellido);
+                    u.setEmail(email);
+                    u.setUsername(username);
                     u.setRolId(cmbRol.getSelectedIndex() == 1 ? 1 : 2);
                     String pass = new String(txtPass.getPassword());
                     
-                    // Cambiado: Registro delegado al servicio corporativo
                     usuarioService.registrarUsuario(u, pass);
                 } else {
                     Usuario u = new Usuario();
                     u.setId(usuario.getId());
-                    u.setNombre(txtNombre.getText().trim());
-                    u.setApellido(txtApellido.getText().trim());
-                    u.setEmail(txtEmail.getText().trim());
-                    u.setUsername(txtUsername.getText().trim());
+                    u.setNombre(nombre);
+                    u.setApellido(apellido);
+                    u.setEmail(email);
+                    u.setUsername(username);
                     u.setRolId(cmbRol.getSelectedIndex() == 1 ? 1 : 2);
                     u.setActivo(usuario.isActivo());
                     
-                    // Cambiado: Modificación delegada al servicio
                     usuarioService.actualizarUsuario(u);
                 }
                 dlg.dispose();
@@ -367,7 +508,6 @@ public class UsuariosPanel extends JPanel {
                 return;
             }
             try {
-                // Cambiado: Redefinición segura a través del servicio
                 usuarioService.redefinirPassword(userId, p1);
                 JOptionPane.showMessageDialog(this, "Contraseña actualizada correctamente.");
             } catch (Exception ex) {
@@ -379,11 +519,14 @@ public class UsuariosPanel extends JPanel {
     private void poblarTabla(List<Usuario> lista) {
         tableModel.setRowCount(0);
         for (Usuario u : lista) {
+            String fechaFormateada = (u.getUltimaSesion() != null) 
+                    ? u.getUltimaSesion().format(visualFormatter) : "Nunca";
+
             tableModel.addRow(new Object[] {
                     u.getId(), u.getUsername(), u.getNombre(), u.getApellido(),
                     u.getEmail(), u.getRol(),
                     u.isActivo() ? "Activo" : "Inactivo",
-                    u.getUltimaSesion() != null ? u.getUltimaSesion().toString().substring(0, 16) : "Nunca"
+                    fechaFormateada
             });
         }
         lblConteo.setText(lista.size() + " usuario(s)");
@@ -393,7 +536,6 @@ public class UsuariosPanel extends JPanel {
         SwingWorker<List<Usuario>, Void> w = new SwingWorker<>() {
             @Override
             protected List<Usuario> doInBackground() throws Exception {
-                // Cambiado: Consumo indirecto de persistencia
                 return usuarioService.obtenerTodosLosUsuarios();
             }
 
