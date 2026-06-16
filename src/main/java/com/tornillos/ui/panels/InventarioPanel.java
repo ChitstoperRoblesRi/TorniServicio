@@ -253,10 +253,13 @@ public class InventarioPanel extends JPanel {
         table.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
+            // CORRECCIÓN: Doble clic para editar respetando el orden visual
                 if (e.getClickCount() == 2 && SessionManager.getInstance().isGerente()) {
-                    int row = table.getSelectedRow();
-                    if (row >= 0)
-                        abrirDialogoPorId((int) tableModel.getValueAt(row, 0));
+                int viewRow = table.getSelectedRow();
+                    if (viewRow >= 0) {
+                        int modelRow = table.convertRowIndexToModel(viewRow);
+                        abrirDialogoPorId((int) tableModel.getValueAt(modelRow, 0));
+                    }
                 }
             }
 
@@ -264,10 +267,10 @@ public class InventarioPanel extends JPanel {
             @Override public void mouseReleased(MouseEvent e) { evaluarClicContextual(e); }
 
             private void evaluarClicContextual(MouseEvent e) {
-                if (e.isPopupTrigger() || SwingUtilities.isRightMouseButton(e)) {
-                    int row = table.rowAtPoint(e.getPoint());
-                    if (row >= 0 && row < table.getRowCount()) {
-                        table.setRowSelectionInterval(row, row);
+            if (e.isPopupTrigger() || SwingUtilities.isRightMouseButton(e)) {
+                int viewRow = table.rowAtPoint(e.getPoint());
+                    if (viewRow >= 0 && viewRow < table.getRowCount()) {
+                        table.setRowSelectionInterval(viewRow, viewRow);
                         menuContextual.show(table, e.getX(), e.getY());
                     } else {
                         table.clearSelection();
@@ -284,16 +287,19 @@ public class InventarioPanel extends JPanel {
     }
 
     private JPopupMenu buildContextMenu() {
-        JPopupMenu popup = AppTheme.darkPopup();
+    JPopupMenu popup = AppTheme.darkPopup();
 
-        JMenuItem verItem = AppTheme.darkMenuItem("Ver stock actual", null);
-        verItem.addActionListener(e -> verStock());
+    JMenuItem verItem = AppTheme.darkMenuItem("Ver stock actual", null);
+    verItem.addActionListener(e -> verStock());
 
         if (SessionManager.getInstance().isGerente()) {
             JMenuItem editItem = AppTheme.darkMenuItem("Editar tornillo", null);
             editItem.addActionListener(e -> {
-                int row = table.getSelectedRow();
-                if (row >= 0) abrirDialogoPorId((int) tableModel.getValueAt(row, 0));
+                int viewRow = table.getSelectedRow();
+                if (viewRow >= 0) {
+                    int modelRow = table.convertRowIndexToModel(viewRow);
+                    abrirDialogoPorId((int) tableModel.getValueAt(modelRow, 0));
+                }
             });
 
             JMenuItem bajaItem = AppTheme.darkMenuItem("Dar de baja tornillo", null);
@@ -304,23 +310,21 @@ public class InventarioPanel extends JPanel {
             altaItem.setForeground(AppTheme.SUCCESS_TEXT);
             altaItem.addActionListener(ev -> reactivarTornillo());
 
-            /*JMenuItem eliminarItem = AppTheme.darkMenuItem("Eliminar permanentemente", null);
-            eliminarItem.setForeground(AppTheme.DANGER_TEXT);
-            eliminarItem.addActionListener(ev -> eliminarSeleccionado());*/
-
             popup.addPopupMenuListener(new javax.swing.event.PopupMenuListener() {
                 @Override
                 public void popupMenuWillBecomeVisible(javax.swing.event.PopupMenuEvent e) {
                     popup.removeAll();
-                    int row = table.getSelectedRow();
-                    if (row < 0) return;
+                    int viewRow = table.getSelectedRow();
+                    if (viewRow < 0) return;
 
                     popup.add(verItem);
                     popup.add(AppTheme.darkSeparator());
                     popup.add(editItem);
                     popup.add(AppTheme.darkSeparator());
 
-                    boolean esActivo = (boolean) tableModel.getValueAt(row, 11);
+                    // CORRECCIÓN: Validación de estado usando el mapeo al modelo correcto
+                    int modelRow = table.convertRowIndexToModel(viewRow);
+                    boolean esActivo = (boolean) tableModel.getValueAt(modelRow, 11);
                     if (esActivo) {
                         popup.add(bajaItem);
                     } else {
@@ -328,7 +332,6 @@ public class InventarioPanel extends JPanel {
                     }
 
                     popup.add(AppTheme.darkSeparator());
-                    //popup.add(eliminarItem);
                     popup.pack();
                 }
 
@@ -343,12 +346,14 @@ public class InventarioPanel extends JPanel {
     }
 
     private void verStock() {
-        int row = table.getSelectedRow();
-        if (row < 0) return;
-        String nombre = tableModel.getValueAt(row, 2).toString();
-        int stock = (int) tableModel.getValueAt(row, 6);
-        int minimo = (int) tableModel.getValueAt(row, 7);
-        String estado = tableModel.getValueAt(row, 9).toString();
+        int viewRow = table.getSelectedRow();
+        if (viewRow < 0) return;
+        
+        int modelRow = table.convertRowIndexToModel(viewRow);
+        String nombre = tableModel.getValueAt(modelRow, 2).toString();
+        int stock = (int) tableModel.getValueAt(modelRow, 6);
+        int minimo = (int) tableModel.getValueAt(modelRow, 7);
+        String estado = tableModel.getValueAt(modelRow, 9).toString();
 
         JPanel panel = new JPanel(new GridLayout(4, 2, 8, 8));
         panel.setBackground(AppTheme.BG_CARD);
@@ -386,17 +391,19 @@ public class InventarioPanel extends JPanel {
     }
 
     private void darDeBaja() {
-        int row = table.getSelectedRow();
-        if (row < 0) return;
-        int id = (int) tableModel.getValueAt(row, 0);
-        String nombre = tableModel.getValueAt(row, 2).toString();
+        int viewRow = table.getSelectedRow();
+        if (viewRow < 0) return;
+        
+        int modelRow = table.convertRowIndexToModel(viewRow);
+        int id = (int) tableModel.getValueAt(modelRow, 0);
+        String nombre = tableModel.getValueAt(modelRow, 2).toString();
+        
         int opt = JOptionPane.showConfirmDialog(this,
                 "¿Dar de baja a '" + nombre + "'?\n" +
                         "El tornillo quedará inactivo pero su historial se conserva.",
                 "Dar de baja", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
         if (opt != JOptionPane.YES_OPTION) return;
         try {
-            // Cambiado: Ahora delega al servicio unificado
             inventarioService.darDeBajaTornillo(id);
             buscarConFiltro(); 
             mainFrame.actualizarBadgeAlertas();
@@ -407,12 +414,13 @@ public class InventarioPanel extends JPanel {
     }
 
     private void reactivarTornillo() {
-        int row = table.getSelectedRow();
-        if (row < 0) return;
-        int id = (int) tableModel.getValueAt(row, 0);
-        String nombre = tableModel.getValueAt(row, 2).toString();
+        int viewRow = table.getSelectedRow();
+        if (viewRow < 0) return;
+        
+        int modelRow = table.convertRowIndexToModel(viewRow);
+        int id = (int) tableModel.getValueAt(modelRow, 0);
+        String nombre = tableModel.getValueAt(modelRow, 2).toString();
         try {
-            // Cambiado: Ahora delega al servicio unificado
             inventarioService.reactivarTornillo(id);
             buscarConFiltro();
             mainFrame.actualizarBadgeAlertas();

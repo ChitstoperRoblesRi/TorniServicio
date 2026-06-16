@@ -307,17 +307,25 @@ public class SalidasPanel extends JPanel {
     }
 
     private void eliminarSeleccionada() {
-        if (!SessionManager.getInstance().isGerente()) return;
-        int row = table.getSelectedRow();
-        if (row < 0) { JOptionPane.showMessageDialog(this, "Selecciona una salida."); return; }
-        String folio = tableModel.getValueAt(row, 1).toString();
+        if (!SessionManager.getInstance().isGerente()) 
+            return;
+        int viewRow = table.getSelectedRow();
+        if (viewRow < 0) { 
+            JOptionPane.showMessageDialog(this, "Selecciona una salida."); 
+            return; 
+        }
+        
+        // CORRECCIÓN: Conversión del índice antes de extraer datos transaccionales de mermas/ventas
+        int modelRow = table.convertRowIndexToModel(viewRow);
+        String folio = tableModel.getValueAt(modelRow, 1).toString();
+        int idSalida = (int) tableModel.getValueAt(modelRow, 0);
+
         int opt = JOptionPane.showConfirmDialog(this,
-            "Eliminar salida " + folio + "?\nEsto revertirá el stock del tornillo.",
+            "¿Eliminar salida " + folio + "?\nEsto revertirá el stock del tornillo.",
             "Confirmar eliminación", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
         if (opt == JOptionPane.YES_OPTION) {
             try {
-                // Cambiado: Invocación canalizada al servicio para procesar transacciones y reajustar las alertas
-                salidaService.eliminarSalida((int) tableModel.getValueAt(row, 0));
+                salidaService.eliminarSalida(idSalida);
                 mainFrame.actualizarBadgeAlertas();
                 refresh();
                 JOptionPane.showMessageDialog(this, "Salida eliminada y stock revertido.");
@@ -478,8 +486,11 @@ public class SalidasPanel extends JPanel {
         btnCancel.addActionListener(e -> dlg.dispose());
         btnGuardar.addActionListener(e -> {
             try {
-                Tornillo t = (Tornillo) cmbTornillo.getSelectedItem();
-                if (t == null) throw new IllegalArgumentException("Debe seleccionar un tornillo de la lista.");
+                Object seleccionadoObj = cmbTornillo.getSelectedItem();
+                if (!(seleccionadoObj instanceof Tornillo)) {
+                    throw new IllegalArgumentException("Debe seleccionar un tornillo válido de la lista desplegable.");
+                }
+                Tornillo t = (Tornillo) seleccionadoObj;
                 int cantidad = Integer.parseInt(txtCantidad.getText().trim());
                 BigDecimal precio = new BigDecimal(txtPrecio.getText().trim());
                 if (cantidad <= 0) throw new IllegalArgumentException("Cantidad debe ser mayor a 0");
