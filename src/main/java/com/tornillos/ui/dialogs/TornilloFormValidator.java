@@ -1,7 +1,6 @@
 package com.tornillos.ui.dialogs;
 
 import java.math.BigDecimal;
-import java.sql.SQLException;
 
 import javax.swing.JComponent;
 import javax.swing.JOptionPane;
@@ -86,8 +85,18 @@ class TornilloFormValidator {
             trackingError = true;
         }
 
+        // =========================================================================
+        // NUEVA VALIDACIÓN (Modo Edición): Evitar reducción del máximo inferior al stock actual
+        // =========================================================================
+        if (tornilloOriginal != null && stockMax != null && stockMax < tornilloOriginal.getStockActual()) {
+            ui.marcarBordeError(ui.txtStockMax);
+            errores.append("• El stock máximo no puede ser menor a la cantidad actual en almacén (Stock actual: ")
+                   .append(tornilloOriginal.getStockActual()).append(").\n");
+            trackingError = true;
+        }
+
         int stockInicial = 0;
-        if (tornilloOriginal == null) {
+        if (tornilloOriginal == null) { // Esto solo aplica al crear un tornillo nuevo
             String raw = ui.txtStockInicial.getText().trim();
             
             if (!raw.isEmpty()) { 
@@ -101,6 +110,13 @@ class TornilloFormValidator {
                 }
             } else {
                 stockInicial = 0; 
+            }
+
+            // Evitar que el stock inicial supere al stock máximo al crear
+            if (stockMax != null && stockInicial > stockMax) {
+                ui.marcarBordeError(ui.txtStockInicial);
+                errores.append("• El stock inicial no puede ser mayor al stock máximo permitido.\n");
+                trackingError = true;
             }
         }
 
@@ -191,7 +207,10 @@ class TornilloFormValidator {
         t.setPrecioCosto(precioCosto);
         t.setPrecioVenta(precioVenta);
         t.setStockMinimo(stockMin);
-        t.setStockMaximo(stockMax);
+        
+        // 🌟 CORREGIDO: Si stockMax es null (vacío), le pasamos un 0 de forma segura al primitivo
+        t.setStockMaximo(stockMax != null ? stockMax : 0); 
+        
         if (tornilloOriginal == null) t.setStockActual(stockInicial);
 
         return t;

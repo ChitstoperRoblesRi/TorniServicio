@@ -347,10 +347,10 @@ public class EntradasPanel extends JPanel {
         }
     }
 
-    // 🌟 CORREGIDO: Firma ordenada para solucionar el bug de preselección de precio
+    // 🌟 CORREGIDO: Firma ordenada para solucionar el bug de preselección de precio y control de sobrestock
     public void abrirFormularioEntrada(String codigoPreseleccionado) { 
         JDialog dlg = new JDialog((JFrame) SwingUtilities.getWindowAncestor(this), "Registrar Entrada", true);
-        dlg.setSize(520, 480);
+        dlg.setSize(520, 510); // 💡 Incrementado ligeramente el alto para acomodar el indicador de stock
         dlg.setLocationRelativeTo(this);
         dlg.getContentPane().setBackground(AppTheme.BG_CARD);
 
@@ -381,6 +381,11 @@ public class EntradasPanel extends JPanel {
         JTextArea txtObs = AppTheme.styledTextArea();
         txtObs.setRows(2);
 
+        // 🌟 NUEVO: Indicador visual de retroalimentación de stock
+        JLabel lblInfoStock = new JLabel(" ");
+        lblInfoStock.setFont(new Font("Segoe UI", Font.ITALIC, 11));
+        lblInfoStock.setForeground(AppTheme.TEXT_MUTED);
+
         // 2. PASO CLAVE: Agregar el ActionListener ANTES de hacer la selección automática
         cmbTornillo.addActionListener(e -> {
             Object seleccionadoObj = cmbTornillo.getSelectedItem();
@@ -391,9 +396,25 @@ public class EntradasPanel extends JPanel {
                 } else {
                     txtPrecio.setText("0.00");
                 }
+                // Actualizar la etiqueta informativa al cambiar de tornillo
+                actualizarInformacionStock(lblInfoStock, seleccionado, txtCantidad.getText());
             } else {
                 txtPrecio.setText("0.00");
+                lblInfoStock.setText(" ");
             }
+        });
+
+        // 🌟 NUEVO: DocumentListener para validar y dar retroalimentación EN TIEMPO REAL mientras escriben
+        txtCantidad.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
+            private void evaluar() {
+                Object sel = cmbTornillo.getSelectedItem();
+                if (sel instanceof Tornillo) {
+                    actualizarInformacionStock(lblInfoStock, (Tornillo) sel, txtCantidad.getText());
+                }
+            }
+            @Override public void insertUpdate(javax.swing.event.DocumentEvent e) { evaluar(); }
+            @Override public void removeUpdate(javax.swing.event.DocumentEvent e) { evaluar(); }
+            @Override public void changedUpdate(javax.swing.event.DocumentEvent e) { evaluar(); }
         });
 
         // 3. Aplicar estilos UI al ComboBox
@@ -425,7 +446,6 @@ public class EntradasPanel extends JPanel {
         unificarEstiloEditorCombo(cmbTornillo, true);
 
         // 4. PASO CLAVE: Ejecutar la selección automática AL FINAL. 
-        // Como el listener ya escucha y txtPrecio ya existe, rellenará el precio de inmediato.
         if (codigoPreseleccionado != null) {
             for (int i = 0; i < cmbTornillo.getItemCount(); i++) {
                 Tornillo t = cmbTornillo.getItemAt(i);
@@ -442,14 +462,22 @@ public class EntradasPanel extends JPanel {
         txtFolio.setEditable(false);
         txtFolio.setForeground(AppTheme.TEXT_MUTED);
 
+        // Acomodo estratégico de los componentes en el GridBagLayout
         addRow(form, gbc, 0, "Folio:", txtFolio);
         addRow(form, gbc, 1, "Tornillo:", cmbTornillo);
-        addRow(form, gbc, 2, "Cantidad:", txtCantidad);
-        addRow(form, gbc, 3, "Precio Unitario:", txtPrecio);
-        addRow(form, gbc, 4, "No. Factura:", txtFactura);
+
+        // 🌟 INYECCIÓN: Agregar la fila del indicador de stock justo debajo del combo de selección
+        gbc.gridx = 1;
+        gbc.gridy = 2;
+        gbc.weightx = 1.0;
+        form.add(lblInfoStock, gbc);
+
+        addRow(form, gbc, 3, "Cantidad:", txtCantidad);
+        addRow(form, gbc, 4, "Precio Unitario:", txtPrecio);
+        addRow(form, gbc, 5, "No. Factura:", txtFactura);
 
         gbc.gridx = 0;
-        gbc.gridy = 5;
+        gbc.gridy = 6;
         gbc.gridwidth = 1;
         gbc.weightx = 0.0;
         form.add(AppTheme.label("Observaciones:"), gbc);
@@ -474,6 +502,21 @@ public class EntradasPanel extends JPanel {
                     throw new IllegalArgumentException("Cantidad debe ser mayor a 0");
                 if (precio.compareTo(BigDecimal.ZERO) <= 0)
                     throw new IllegalArgumentException("El precio unitario debe ser un número positivo mayor a 0.");
+
+                // 🌟 NUEVA VALIDACIÓN DE BLOQUEO: Verificar el límite máximo de almacén
+                if (t.getStockMaximo() > 0) {
+                    int stockProyectado = t.getStockActual() + cantidad;
+                    if (stockProyectado > t.getStockMaximo()) {
+                        throw new IllegalArgumentException(String.format(
+                            "Operación denegada: La cantidad ingresada supera el stock máximo.\n\n" +
+                            "▪ Stock Actual: %d pzas\n" +
+                            "▪ Capacidad Máxima: %d pzas\n" +
+                            "▪ Espacio Libre Disponible: %d pzas\n\n" +
+                            "Por favor, reduzca el volumen de la entrada.",
+                            t.getStockActual(), t.getStockMaximo(), (t.getStockMaximo() - t.getStockActual())
+                        ));
+                    }
+                }
 
                 BigDecimal totalCalculado = precio.multiply(BigDecimal.valueOf(cantidad));
                 String resumenTicket = String.format(
@@ -500,7 +543,6 @@ public class EntradasPanel extends JPanel {
                 entrada.setNumeroFactura(txtFactura.getText().trim());
                 entrada.setObservaciones(txtObs.getText().trim());
 
-                // Cambiado: Invocación delegada limpiamente a través de EntradaService
                 entradaService.registrarEntrada(entrada);
                 
                 dlg.dispose();
@@ -517,7 +559,7 @@ public class EntradasPanel extends JPanel {
             }
         });
         gbc.gridx = 0;
-        gbc.gridy = 6;
+        gbc.gridy = 7;
         gbc.gridwidth = 2;
         gbc.weightx = 0.0; 
         form.add(btns, gbc);
@@ -595,6 +637,42 @@ public class EntradasPanel extends JPanel {
             });
         }
         lblConteo.setText(lista.size() + " entrada(s)");
+    }
+
+    // 🌟 CORREGIDO: Colores adaptados al Design System corporativo para alto contraste
+    private void actualizarInformacionStock(JLabel lblInfoStock, Tornillo t, String txtCantStr) {
+        if (t == null) {
+            lblInfoStock.setText(" ");
+            return;
+        }
+
+        int actual = t.getStockActual();
+        int max = t.getStockMaximo();
+        int ingresado = 0;
+
+        try {
+            if (!txtCantStr.trim().isEmpty()) {
+                ingresado = Integer.parseInt(txtCantStr.trim());
+            }
+        } catch (NumberFormatException e) {
+            // Ignorar errores de casteo temporal mientras el usuario escribe
+        }
+
+        if (max == 0) {
+            lblInfoStock.setText(String.format("Stock Actual: %d pzas | Capacidad Máxima: Sin límite", actual));
+            lblInfoStock.setForeground(AppTheme.TEXT_SECONDARY); // 🌟 CORREGIDO
+        } else {
+            int disponible = max - actual;
+            int proyectado = actual + ingresado;
+
+            if (proyectado > max) {
+                lblInfoStock.setText(String.format("⚠️ ¡Exceso! Proyectado: %d / Máx: %d (Espacio libre: %d)", proyectado, max, disponible));
+                lblInfoStock.setForeground(AppTheme.DANGER_TEXT); // 🌟 CORREGIDO: Rojo Fiori corporativo brillante
+            } else {
+                lblInfoStock.setText(String.format("Stock Actual: %d / Máx: %d (Disponible para entrada: %d)", actual, max, disponible));
+                lblInfoStock.setForeground(AppTheme.TEXT_SECONDARY); // 🌟 CORREGIDO: Gris legible
+            }
+        }
     }
 
     public void refresh() {
